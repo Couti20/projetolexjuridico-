@@ -1,16 +1,7 @@
-import { type FormEvent } from 'react';
 import { motion } from 'motion/react';
-import { Scale, Clock, MessageCircle, CheckCircle2, ArrowRight, BarChart3 } from 'lucide-react';
+import { Clock, MessageCircle, BarChart3 } from 'lucide-react';
 
-interface HeroSectionProps {
-  leadEmail: string;
-  setLeadEmail: (v: string) => void;
-  leadSubmitted: boolean;
-  setLeadSubmitted: (v: boolean) => void;
-  handleLeadSubmit: (e: FormEvent<HTMLFormElement>) => void;
-}
-
-export function HeroSection({ leadEmail, setLeadEmail, leadSubmitted, setLeadSubmitted, handleLeadSubmit }: HeroSectionProps) {
+export function HeroSection() {
   return (
     <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -29,51 +20,47 @@ export function HeroSection({ leadEmail, setLeadEmail, leadSubmitted, setLeadSub
               </span>
               Seu Assistente de Prazos Pessoal
             </div>
+
             <h1 className="text-5xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-slate-900 leading-[1.1] mb-6 lg:pr-12 relative z-30">
               Recupere 1 hora de foco por dia.{' '}
               <span className="text-blue-600">Deixe os tribunais no piloto automático.</span>
             </h1>
-            <p className="text-lg text-slate-600 mb-8 leading-relaxed max-w-xl">
-              O Lex não monitora apenas seus prazos 24h por dia. Ele centraliza sua rotina, elimina o tempo perdido em portais lentos e traz organização inteligente para o seu dia a dia via WhatsApp.
-            </p>
 
-            <div className="flex flex-col gap-3 mt-8 max-w-lg">
-              <form onSubmit={handleLeadSubmit} className="flex flex-col sm:flex-row gap-3">
-                <label htmlFor="lead-email" className="sr-only">Seu e-mail profissional</label>
-                <input
-                  id="lead-email"
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={leadEmail}
-                  onChange={(e) => {
-                    setLeadEmail(e.target.value);
-                    if (leadSubmitted) setLeadSubmitted(false);
-                  }}
-                  placeholder="Seu e-mail profissional..."
-                  className="flex-1 px-5 py-4 rounded-xl border border-slate-200/50 bg-white/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400 shadow-inner"
-                />
-                <button type="submit" className="btn-primary px-8 py-4 font-semibold flex items-center justify-center gap-2 transition-all whitespace-nowrap">
-                  Testar Grátis <ArrowRight size={20} />
-                </button>
-              </form>
-              {leadSubmitted && (
-                <p className="text-xs text-emerald-700 font-medium ml-1">
-                  Recebemos seu e-mail. Em breve entraremos em contato.
-                </p>
-              )}
-              <div className="flex items-center flex-wrap gap-4 text-xs text-slate-500 font-medium ml-1">
-                <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" /> 7 dias grátis</span>
-                <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500" /> Liberação imediata</span>
-              </div>
-            </div>
+            <p className="text-lg text-slate-600 mb-8 leading-relaxed max-w-xl">
+              O Lex não monitora apenas seus prazos 24h por dia. Ele centraliza sua rotina,
+              elimina o tempo perdido em portais lentos e traz organização inteligente para
+              o seu dia a dia via WhatsApp.
+            </p>
 
             <div className="mt-8 flex items-center gap-4 text-sm text-slate-500">
               <div className="flex -space-x-2">
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64" alt="User" width={32} height={32} loading="lazy" decoding="async" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
-                <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64" alt="User" width={32} height={32} loading="lazy" decoding="async" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
-                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64" alt="User" width={32} height={32} loading="lazy" decoding="async" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
+                <img
+                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64"
+                  alt="Advogada usuária do Lex"
+                  width={32}
+                  height={32}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-8 h-8 rounded-full border-2 border-white object-cover"
+                />
+                <img
+                  src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64"
+                  alt="Advogado usuário do Lex"
+                  width={32}
+                  height={32}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-8 h-8 rounded-full border-2 border-white object-cover"
+                />
+                <img
+                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64"
+                  alt="Advogada usuária do Lex"
+                  width={32}
+                  height={32}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-8 h-8 rounded-full border-2 border-white object-cover"
+                />
               </div>
               <p>Junte-se a +2.000 advogados focados</p>
             </div>
@@ -106,7 +93,9 @@ export function HeroSection({ leadEmail, setLeadEmail, leadSubmitted, setLeadSub
               <div className="w-full h-full bg-slate-900/50 rounded-xl sm:rounded-2xl border border-slate-700/50 p-4 flex flex-col gap-4">
                 <div className="flex justify-between items-center pb-3 border-b border-slate-700/50">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center"><BarChart3 size={16} className="text-white" /></div>
+                    <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                      <BarChart3 size={16} className="text-white" />
+                    </div>
                     <div className="w-24 h-4 bg-slate-700 rounded-md"></div>
                   </div>
                   <div className="flex gap-2">
@@ -162,7 +151,13 @@ export function HeroSection({ leadEmail, setLeadEmail, leadSubmitted, setLeadSub
                     opacity: [0, 1, 1, 1, 0],
                     scale: [0.95, 1, 1, 1, 0.95],
                   }}
-                  transition={{ duration: 6, times: [0, 0.15, 0.75, 0.9, 1], repeat: Infinity, repeatDelay: 1.5, ease: 'easeInOut' }}
+                  transition={{
+                    duration: 6,
+                    times: [0, 0.15, 0.75, 0.9, 1],
+                    repeat: Infinity,
+                    repeatDelay: 1.5,
+                    ease: 'easeInOut',
+                  }}
                   className="absolute top-0 left-2 right-2 bg-white/95 backdrop-blur-xl rounded-2xl p-2.5 shadow-2xl z-40 flex items-start gap-2.5 border border-slate-200"
                 >
                   <div className="w-8 h-8 rounded-[10px] bg-[#25D366] flex items-center justify-center shrink-0 shadow-sm">
@@ -174,9 +169,12 @@ export function HeroSection({ leadEmail, setLeadEmail, leadSubmitted, setLeadSub
                       <span className="text-[9px] text-slate-400">agora</span>
                     </div>
                     <p className="text-[11px] font-bold text-slate-800 leading-tight">Lex</p>
-                    <p className="text-[10px] text-slate-600 leading-tight mt-0.5 line-clamp-2">🚨 <strong>Novo Andamento:</strong> Processo 0089... Prazo de manifestação aberto. Veja agora.</p>
+                    <p className="text-[10px] text-slate-600 leading-tight mt-0.5 line-clamp-2">
+                      🚨 <strong>Novo Andamento:</strong> Processo 0089... Prazo de manifestação aberto. Veja agora.
+                    </p>
                   </div>
                 </motion.div>
+
                 <div className="bg-[#075E54] pt-8 pb-3 px-4 flex items-center gap-3 shadow-md z-20">
                   <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shrink-0">
                     <MessageCircle size={18} fill="#25D366" className="text-[#25D366]" />
@@ -186,7 +184,9 @@ export function HeroSection({ leadEmail, setLeadEmail, leadSubmitted, setLeadSub
                     <p className="text-emerald-100 text-[10px] leading-tight">online</p>
                   </div>
                 </div>
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
+
+                <div className="absolute inset-0 opacity-10 pointer-events-none bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.03)_10px,rgba(0,0,0,0.03)_20px)]"></div>
+
                 <div className="flex-1 p-3 flex flex-col justify-end pb-12 z-10">
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0, x: -20 }}
@@ -195,10 +195,16 @@ export function HeroSection({ leadEmail, setLeadEmail, leadSubmitted, setLeadSub
                     className="bg-white rounded-tr-xl rounded-br-xl rounded-bl-xl p-3 shadow-sm relative self-start max-w-[95%]"
                   >
                     <p className="text-[13px] text-slate-800 leading-relaxed">
-                      ⚖️ <strong>Briefing de Hoje (14/08)</strong><br /><br />
-                      Você tem 3 prazos vencendo hoje.<br />
-                      1. Apelação (Processo 0034...)<br />
-                      2. Réplica (Processo 1122...)<br /><br />
+                      ⚖️ <strong>Briefing de Hoje (14/08)</strong>
+                      <br />
+                      <br />
+                      Você tem 3 prazos vencendo hoje.
+                      <br />
+                      1. Apelação (Processo 0034...)
+                      <br />
+                      2. Réplica (Processo 1122...)
+                      <br />
+                      <br />
                       Resumos na plataforma. Bom dia!
                     </p>
                     <div className="flex justify-end gap-1 mt-1 items-center">
