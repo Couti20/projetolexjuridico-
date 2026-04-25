@@ -1,17 +1,16 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Alex Monorepo (estrutura inicial)
 
-# PrazoAlert Landing Page
+Estrutura atual separada para trabalho em equipe:
 
-Landing page em React + Vite para aquisição de novos usuários do PrazoAlert.
+- `front-end/` → landing page (React + Vite)
+- `back-end/` → API (a implementar)
+- `services/` → workers e integrações assíncronas (a implementar)
 
-## Run Locally
+## Rodando o front-end localmente
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
+1. Entre na pasta:
+   `cd front-end`
+2. Instale dependências:
    `npm install`
-2. Run the app:
+3. Rode o projeto:
    `npm run dev`

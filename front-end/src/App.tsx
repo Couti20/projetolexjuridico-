@@ -1,11 +1,6 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, type FormEvent } from 'react';
 import { motion } from 'motion/react';
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell, type TooltipProps } from 'recharts';
 import { 
   Building2, 
   Scale, 
@@ -13,7 +8,6 @@ import {
   Clock, 
   MessageCircle, 
   CalendarCheck, 
-  ChevronRight, 
   CheckCircle2, 
   ArrowRight,
   Menu,
@@ -21,48 +15,21 @@ import {
   ListTodo,
   BarChart3
 } from 'lucide-react';
+import { weekData } from './data/weekData';
+import { Icon3D } from './ui/Icon3D';
+import { FeatureCard } from './ui/FeatureCard';
+import { FaqItem } from './ui/FaqItem';
 
-const Icon3D = ({ icon: Icon, colorType = "blue" }: { icon: any, colorType?: "blue" | "slate" | "red" }) => {
-  const colors = {
-    blue: "from-blue-400 via-blue-500 to-blue-700 shadow-[inset_0px_-3px_8px_rgba(0,0,0,0.3),inset_0px_3px_8px_rgba(255,255,255,0.4),0_6px_15px_-3px_rgba(37,99,235,0.4)]",
-    slate: "from-slate-600 via-slate-700 to-slate-900 shadow-[inset_0px_-3px_8px_rgba(0,0,0,0.4),inset_0px_3px_8px_rgba(255,255,255,0.2),0_6px_15px_-3px_rgba(15,23,42,0.4)]",
-    red: "from-rose-400 via-rose-500 to-rose-700 shadow-[inset_0px_-3px_8px_rgba(0,0,0,0.3),inset_0px_3px_8px_rgba(255,255,255,0.4),0_6px_15px_-3px_rgba(225,29,72,0.4)]",
-  };
-
-  return (
-    <div className="relative w-14 h-14 group perspective-1000 mb-6">
-       {/* Drop Shadow Reflection */}
-       <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-8 h-2 bg-slate-900/40 blur-[4px] rounded-full transition-all duration-300 group-hover:scale-75 group-hover:opacity-50"></div>
-       
-       {/* 3D Body */}
-       <div className={`absolute inset-0 bg-gradient-to-br ${colors[colorType]} rounded-2xl transition-transform duration-300 group-hover:-translate-y-1.5 flex items-center justify-center overflow-hidden border border-white/20`}>
-          {/* Glossy top reflection */}
-          <div className="absolute top-0 inset-x-0 h-[45%] bg-gradient-to-b from-white/40 to-transparent rounded-t-2xl pointer-events-none"></div>
-          {/* Inner bottom glow */}
-          <div className="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent rounded-b-2xl pointer-events-none"></div>
-          
-          {/* The Lucide Icon */}
-          <Icon size={26} className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] relative z-10 transform transition-transform duration-300 group-hover:scale-110 group-hover:rotate-y-12" strokeWidth={2.5} />
-       </div>
-    </div>
-  );
-}
-
-const weekData = [
-  { name: 'Seg', prazos: 4, fill: 'rgba(255,255,255,0.1)' },
-  { name: 'Ter', prazos: 7, fill: 'rgba(255,255,255,0.2)' },
-  { name: 'Qua', prazos: 15, isPico: true, fill: '#3B82F6' },
-  { name: 'Qui', prazos: 6, fill: 'rgba(255,255,255,0.15)' },
-  { name: 'Sex', prazos: 3, fill: 'rgba(255,255,255,0.08)' },
-];
-
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
+    const rawValue = payload[0]?.value;
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
+
     return (
       <div className="bg-slate-800 border border-slate-700 p-2 lg:p-3 rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.5)] shrink-0 backdrop-blur-md">
         <p className="text-slate-400 text-[10px] mb-1 font-semibold uppercase tracking-wider">{label}</p>
         <p className="text-white font-bold text-xs lg:text-sm whitespace-nowrap">
-          <span className="text-blue-400 text-lg mr-1">{payload[0].value}</span> 
+          <span className="text-blue-400 text-lg mr-1">{value}</span>
           prazos fatais
         </p>
       </div>
@@ -74,6 +41,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function App() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [leadEmail, setLeadEmail] = useState('');
+  const [leadSubmitted, setLeadSubmitted] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -82,6 +52,25 @@ export default function App() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      mobileMenuRef.current?.focus();
+    }
+  }, [mobileMenuOpen]);
+
+  const handleLeadSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedEmail = leadEmail.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      return;
+    }
+
+    localStorage.setItem('lex_lead_email', normalizedEmail);
+    setLeadSubmitted(true);
+    setLeadEmail('');
+  };
 
   return (
     <div className="min-h-screen text-slate-800 relative">
@@ -104,7 +93,7 @@ export default function App() {
               <a href="#pricing" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Planos</a>
               <div className="flex items-center gap-4 ml-4">
                 <a href="#security" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Segurança</a>
-                <button className="btn-primary px-5 py-2.5 text-sm">
+                <button type="button" className="btn-primary px-5 py-2.5 text-sm">
                   Teste Grátis
                 </button>
               </div>
@@ -112,7 +101,12 @@ export default function App() {
 
             {/* Mobile Menu Button */}
             <div className="md:hidden">
-              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-slate-600">
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="text-slate-600"
+                aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+              >
                 {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
@@ -122,13 +116,25 @@ export default function App() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-40 glass-panel border-none pt-24 px-4 pb-6 flex flex-col gap-6">
+        <div
+          ref={mobileMenuRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu de navegação"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setMobileMenuOpen(false);
+            }
+          }}
+          className="md:hidden fixed inset-0 z-40 glass-panel border-none pt-24 px-4 pb-6 flex flex-col gap-6"
+        >
           <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-slate-800">Recursos</a>
           <a href="#solution" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-slate-800">Como Funciona</a>
           <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-slate-800">Planos</a>
           <div className="h-px bg-slate-200/50 my-2"></div>
           <a href="#security" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-slate-800">Segurança</a>
-          <button className="btn-primary w-full py-3 rounded-xl text-lg font-semibold mt-4">
+          <button type="button" className="btn-primary w-full py-3 rounded-xl text-lg font-semibold mt-4">
             Teste Grátis de 7 Dias
           </button>
         </div>
@@ -160,16 +166,35 @@ export default function App() {
               </p>
               
               <div className="flex flex-col gap-3 mt-8 max-w-lg">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input 
-                    type="email" 
-                    placeholder="Seu e-mail profissional..." 
+                <form onSubmit={handleLeadSubmit} className="flex flex-col sm:flex-row gap-3">
+                  <label htmlFor="lead-email" className="sr-only">
+                    Seu e-mail profissional
+                  </label>
+                  <input
+                    id="lead-email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={leadEmail}
+                    onChange={(event) => {
+                      setLeadEmail(event.target.value);
+                      if (leadSubmitted) {
+                        setLeadSubmitted(false);
+                      }
+                    }}
+                    placeholder="Seu e-mail profissional..."
                     className="flex-1 px-5 py-4 rounded-xl border border-slate-200/50 bg-white/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400 shadow-inner"
                   />
-                  <button className="btn-primary px-8 py-4 font-semibold flex items-center justify-center gap-2 transition-all whitespace-nowrap">
+                  <button type="submit" className="btn-primary px-8 py-4 font-semibold flex items-center justify-center gap-2 transition-all whitespace-nowrap">
                     Testar Grátis <ArrowRight size={20} />
                   </button>
-                </div>
+                </form>
+                {leadSubmitted && (
+                  <p className="text-xs text-emerald-700 font-medium ml-1">
+                    Recebemos seu e-mail. Em breve entraremos em contato.
+                  </p>
+                )}
                 <div className="flex items-center flex-wrap gap-4 text-xs text-slate-500 font-medium ml-1">
                   <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500"/> 7 dias grátis</span>
                   <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500"/> Liberação imediata</span>
@@ -178,9 +203,9 @@ export default function App() {
               
               <div className="mt-8 flex items-center gap-4 text-sm text-slate-500">
                 <div className="flex -space-x-2">
-                   <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64" alt="User" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
-                   <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64" alt="User" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
-                   <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64" alt="User" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
+                   <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64" alt="User" width={32} height={32} loading="lazy" decoding="async" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
+                   <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64" alt="User" width={32} height={32} loading="lazy" decoding="async" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
+                   <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64" alt="User" width={32} height={32} loading="lazy" decoding="async" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
                 </div>
                 <p>Junte-se a +2.000 advogados focados</p>
               </div>
@@ -203,7 +228,7 @@ export default function App() {
                   <Clock size={20} className="sm:w-6 sm:h-6" />
                 </div>
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-slate-500 line-height-tight">Tempo recuperado</p>
+                  <p className="text-xs sm:text-sm font-medium text-slate-500 leading-tight">Tempo recuperado</p>
                   <p className="text-lg sm:text-xl font-bold text-slate-900">+40h / mês</p>
                 </div>
               </motion.div>
@@ -277,7 +302,7 @@ export default function App() {
                     }}
                     transition={{ 
                       duration: 6, 
-                      times: [0, 0.1, 0.8, 0.9, 1],
+                      times: [0, 0.15, 0.75, 0.9, 1],
                       repeat: Infinity, 
                       repeatDelay: 1.5,
                       ease: "easeInOut"
@@ -542,6 +567,10 @@ export default function App() {
               <img 
                 src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop" 
                 alt="Advogada" 
+                width={96}
+                height={96}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
@@ -580,7 +609,7 @@ export default function App() {
                 <li className="flex items-center gap-3 text-slate-700"><CheckCircle2 className="text-blue-500" size={20} /> Alertas via WhatsApp</li>
                 <li className="flex items-center gap-3 text-slate-700"><CheckCircle2 className="text-blue-500" size={20} /> Monitoramento 1x ao dia</li>
               </ul>
-              <button className="w-full py-4 rounded-xl font-semibold text-white btn-primary">
+              <button type="button" className="w-full py-4 rounded-xl font-semibold text-white btn-primary">
                 Começar Teste Grátis
               </button>
             </div>
@@ -599,10 +628,10 @@ export default function App() {
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 className="text-blue-400" size={20} /> Processos Ilimitados</li>
                 <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 className="text-blue-400" size={20} /> Resumo Programado 'O que Fazer Hoje'</li>
-                <li className="flexItems-center gap-3 text-slate-300 flex"><CheckCircle2 className="text-blue-400 shrink-0" size={20} /> Dashboard de Demanda Semanal</li>
-                <li className="flexItems-center gap-3 text-slate-300 flex"><CheckCircle2 className="text-blue-400 shrink-0" size={20} /> Múltiplos Usuários do Escritório</li>
+                <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 className="text-blue-400 shrink-0" size={20} /> Dashboard de Demanda Semanal</li>
+                <li className="flex items-center gap-3 text-slate-300"><CheckCircle2 className="text-blue-400 shrink-0" size={20} /> Múltiplos Usuários do Escritório</li>
               </ul>
-              <button className="w-full py-4 rounded-xl font-semibold text-white btn-primary">
+              <button type="button" className="w-full py-4 rounded-xl font-semibold text-white btn-primary">
                 Assinar Plano Office
               </button>
             </div>
@@ -714,37 +743,6 @@ export default function App() {
         </div>
       </footer>
 
-    </div>
-  );
-}
-
-function FeatureCard({ icon: Icon, title, desc }: { icon: any, title: string, desc: string }) {
-  return (
-    <motion.div 
-      whileHover={{ y: -5 }}
-      className="p-8 glass-card transition-all group"
-    >
-      <Icon3D icon={Icon} colorType="blue" />
-      <h3 className="text-2xl font-bold text-slate-900 mb-4">{title}</h3>
-      <p className="text-slate-600 leading-relaxed text-sm md:text-base">{desc}</p>
-    </motion.div>
-  );
-}
-
-function FaqItem({ q, a }: { q: string, a: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="glass-panel rounded-2xl overflow-hidden transition-all">
-      <button 
-        onClick={() => setOpen(!open)} 
-        className="w-full text-left px-6 py-5 flex items-center justify-between focus:outline-none"
-      >
-        <span className="font-semibold text-slate-900 text-lg">{q}</span>
-        <ChevronRight size={20} className={`text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-      <div className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${open ? 'max-h-96 pb-5 opacity-100' : 'max-h-0 opacity-0'}`}>
-        <p className="text-slate-600 leading-relaxed">{a}</p>
-      </div>
     </div>
   );
 }
