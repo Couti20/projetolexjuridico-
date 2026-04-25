@@ -1,7 +1,19 @@
-import { motion } from 'motion/react';
-import { Clock, MessageCircle, BarChart3 } from 'lucide-react';
+/**
+ * HeroSection — seção principal da landing page.
+ *
+ * Props:
+ *   onNavigateSignUp — callback vindo do App.tsx para navegar
+ *                      até a página de cadastro sem href hardcoded.
+ */
 
-export function HeroSection() {
+import { motion } from 'motion/react';
+import { Clock, MessageCircle, BarChart3, ArrowRight, ShieldCheck } from 'lucide-react';
+
+interface HeroSectionProps {
+  onNavigateSignUp: () => void;
+}
+
+export function HeroSection({ onNavigateSignUp }: HeroSectionProps) {
   return (
     <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -15,8 +27,8 @@ export function HeroSection() {
           >
             <div className="badge-soft inline-flex items-center gap-2 mb-6 border border-blue-100/50">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
               </span>
               Seu Assistente de Prazos Pessoal
             </div>
@@ -32,7 +44,28 @@ export function HeroSection() {
               o seu dia a dia via WhatsApp.
             </p>
 
-            <div className="mt-8 flex items-center gap-4 text-sm text-slate-500">
+            {/* ─── CTAs ────────────────────────────────────────────── */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-10">
+              <button
+                type="button"
+                onClick={onNavigateSignUp}
+                className="btn-primary group inline-flex items-center gap-2 px-7 py-4 text-base font-semibold rounded-xl shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 transition-all"
+              >
+                Teste Grátis por 7 Dias
+                <ArrowRight
+                  size={18}
+                  className="transition-transform duration-200 group-hover:translate-x-1"
+                />
+              </button>
+
+              <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
+                <ShieldCheck size={15} className="text-emerald-500" />
+                Sem cartão de crédito
+              </span>
+            </div>
+
+            {/* Social proof */}
+            <div className="flex items-center gap-4 text-sm text-slate-500">
               <div className="flex -space-x-2">
                 <img
                   src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64"
@@ -66,6 +99,7 @@ export function HeroSection() {
             </div>
           </motion.div>
 
+          {/* ─── Visual direito (dashboard + phone) ─── */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -96,38 +130,38 @@ export function HeroSection() {
                     <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                       <BarChart3 size={16} className="text-white" />
                     </div>
-                    <div className="w-24 h-4 bg-slate-700 rounded-md"></div>
+                    <div className="w-24 h-4 bg-slate-700 rounded-md" />
                   </div>
                   <div className="flex gap-2">
-                    <div className="w-6 h-6 rounded-md bg-slate-800 border border-slate-700"></div>
-                    <div className="w-6 h-6 rounded-md bg-slate-800 border border-slate-700"></div>
+                    <div className="w-6 h-6 rounded-md bg-slate-800 border border-slate-700" />
+                    <div className="w-6 h-6 rounded-md bg-slate-800 border border-slate-700" />
                   </div>
                 </div>
                 <div className="flex gap-4 h-[200px] sm:h-[240px]">
                   <div className="flex-1 border border-slate-700/50 rounded-xl bg-slate-800/30 p-3 sm:p-4 flex flex-col">
-                    <div className="w-1/2 h-3 bg-slate-600 rounded-md mb-2"></div>
-                    <div className="w-3/4 h-5 bg-white rounded-md mb-6"></div>
+                    <div className="w-1/2 h-3 bg-slate-600 rounded-md mb-2" />
+                    <div className="w-3/4 h-5 bg-white rounded-md mb-6" />
                     <div className="mt-auto flex items-end gap-2 h-24">
-                      <div className="flex-1 bg-blue-500/80 rounded-t-md h-[40%]"></div>
-                      <div className="flex-1 bg-blue-400 rounded-t-md h-[70%]"></div>
-                      <div className="flex-1 bg-blue-600 rounded-t-md h-[100%] shadow-[0_0_15px_rgba(37,99,235,0.5)]"></div>
-                      <div className="flex-1 bg-slate-600/50 rounded-t-md h-[50%]"></div>
-                      <div className="flex-1 bg-slate-600/50 rounded-t-md h-[80%]"></div>
-                      <div className="flex-1 bg-blue-500/80 rounded-t-md h-[60%]"></div>
+                      <div className="flex-1 bg-blue-500/80 rounded-t-md h-[40%]" />
+                      <div className="flex-1 bg-blue-400 rounded-t-md h-[70%]" />
+                      <div className="flex-1 bg-blue-600 rounded-t-md h-[100%] shadow-[0_0_15px_rgba(37,99,235,0.5)]" />
+                      <div className="flex-1 bg-slate-600/50 rounded-t-md h-[50%]" />
+                      <div className="flex-1 bg-slate-600/50 rounded-t-md h-[80%]" />
+                      <div className="flex-1 bg-blue-500/80 rounded-t-md h-[60%]" />
                     </div>
                   </div>
                   <div className="w-1/3 flex flex-col gap-3">
                     <div className="flex-1 border border-slate-700/50 rounded-xl bg-slate-800/30 p-3 flex flex-col justify-center">
-                      <div className="w-full h-2 bg-slate-600 rounded mb-2"></div>
-                      <div className="w-2/3 h-4 bg-white rounded"></div>
+                      <div className="w-full h-2 bg-slate-600 rounded mb-2" />
+                      <div className="w-2/3 h-4 bg-white rounded" />
                     </div>
                     <div className="flex-1 border border-slate-700/50 rounded-xl bg-slate-800/30 p-3 flex flex-col justify-center">
-                      <div className="w-full h-2 bg-slate-600 rounded mb-2"></div>
-                      <div className="w-1/2 h-4 bg-blue-400 rounded"></div>
+                      <div className="w-full h-2 bg-slate-600 rounded mb-2" />
+                      <div className="w-1/2 h-4 bg-blue-400 rounded" />
                     </div>
                     <div className="flex-1 border border-emerald-900/50 rounded-xl bg-emerald-900/20 p-3 flex flex-col justify-center">
-                      <div className="w-full h-2 bg-emerald-700/50 rounded mb-2"></div>
-                      <div className="w-3/4 h-4 bg-emerald-400 rounded"></div>
+                      <div className="w-full h-2 bg-emerald-700/50 rounded mb-2" />
+                      <div className="w-3/4 h-4 bg-emerald-400 rounded" />
                     </div>
                   </div>
                 </div>
@@ -143,7 +177,7 @@ export function HeroSection() {
             >
               <div className="relative w-full h-full bg-[#E5DDD5] rounded-[2rem] overflow-hidden flex flex-col">
                 <div className="absolute top-0 inset-x-0 h-6 flex justify-center z-50">
-                  <div className="w-24 h-5 bg-slate-900 rounded-b-xl"></div>
+                  <div className="w-24 h-5 bg-slate-900 rounded-b-xl" />
                 </div>
                 <motion.div
                   animate={{
@@ -170,7 +204,7 @@ export function HeroSection() {
                     </div>
                     <p className="text-[11px] font-bold text-slate-800 leading-tight">Lex</p>
                     <p className="text-[10px] text-slate-600 leading-tight mt-0.5 line-clamp-2">
-                      🚨 <strong>Novo Andamento:</strong> Processo 0089... Prazo de manifestação aberto. Veja agora.
+                      🚨 <strong>Novo Andamento:</strong> Processo 0089... Prazo de manifestação aberto.
                     </p>
                   </div>
                 </motion.div>
@@ -185,7 +219,7 @@ export function HeroSection() {
                   </div>
                 </div>
 
-                <div className="absolute inset-0 opacity-10 pointer-events-none bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.03)_10px,rgba(0,0,0,0.03)_20px)]"></div>
+                <div className="absolute inset-0 opacity-10 pointer-events-none bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.03)_10px,rgba(0,0,0,0.03)_20px)]" />
 
                 <div className="flex-1 p-3 flex flex-col justify-end pb-12 z-10">
                   <motion.div
@@ -196,15 +230,13 @@ export function HeroSection() {
                   >
                     <p className="text-[13px] text-slate-800 leading-relaxed">
                       ⚖️ <strong>Briefing de Hoje (14/08)</strong>
-                      <br />
-                      <br />
+                      <br /><br />
                       Você tem 3 prazos vencendo hoje.
                       <br />
                       1. Apelação (Processo 0034...)
                       <br />
                       2. Réplica (Processo 1122...)
-                      <br />
-                      <br />
+                      <br /><br />
                       Resumos na plataforma. Bom dia!
                     </p>
                     <div className="flex justify-end gap-1 mt-1 items-center">
@@ -215,7 +247,7 @@ export function HeroSection() {
               </div>
             </motion.div>
 
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-400/30 rounded-full blur-[80px] -z-10"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-400/30 rounded-full blur-[80px] -z-10" />
           </motion.div>
 
         </div>

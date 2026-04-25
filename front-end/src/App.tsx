@@ -26,22 +26,26 @@ import { SignUpPage } from './pages/SignUpPage';
 type Route = 'home' | 'signup';
 
 function getRouteFromHash(): Route {
-  const hash = window.location.hash;
-  if (hash === '#/cadastro') return 'signup';
-  return 'home';
+  return window.location.hash === '#/cadastro' ? 'signup' : 'home';
 }
 
 export default function App() {
   const [route, setRoute] = useState<Route>(getRouteFromHash);
 
+  // Sincroniza o estado com mudanças no hash (botão voltar do browser incluído)
   useEffect(() => {
     const onHashChange = () => setRoute(getRouteFromHash());
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
+  /**
+   * Função de navegação centralizada.
+   * Toda mudança de rota passa por aqui — nunca via href direto.
+   */
   const navigateTo = (target: Route) => {
-    window.location.hash = target === 'home' ? '#/' : `#/${target}`;
+    const hash = target === 'home' ? '#/' : `#/${target}`;
+    window.location.hash = hash;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -51,8 +55,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-slate-800 relative">
+      {/*
+       * onNavigateSignUp é passado explicitamente para cada componente
+       * que precisa do botão de CTA — nunca via Context ou prop drilling desnecessário.
+       * Navbar e HeroSection são os dois pontos de entrada de cadastro na landing.
+       */}
       <Navbar onNavigateSignUp={() => navigateTo('signup')} />
-      <HeroSection />
+      <HeroSection onNavigateSignUp={() => navigateTo('signup')} />
       <SocialProof />
       <ProblemSection />
       <FeaturesSection />
