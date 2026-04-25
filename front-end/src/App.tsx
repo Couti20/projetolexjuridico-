@@ -1,4 +1,3 @@
-import { useState, type FormEvent } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { SocialProof } from './components/SocialProof';
@@ -12,32 +11,10 @@ import { TrustSection } from './components/TrustSection';
 import { Footer } from './components/Footer';
 
 export default function App() {
-  const [leadEmail, setLeadEmail] = useState('');
-  const [leadSubmitted, setLeadSubmitted] = useState(false);
-
-  const handleLeadSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const normalizedEmail = leadEmail.trim().toLowerCase();
-    if (!normalizedEmail) {
-      return;
-    }
-
-    localStorage.setItem('lex_lead_email', normalizedEmail);
-    setLeadSubmitted(true);
-    setLeadEmail('');
-  };
-
   return (
     <div className="min-h-screen text-slate-800 relative">
       <Navbar />
-      <HeroSection
-        leadEmail={leadEmail}
-        setLeadEmail={setLeadEmail}
-        leadSubmitted={leadSubmitted}
-        setLeadSubmitted={setLeadSubmitted}
-        handleLeadSubmit={handleLeadSubmit}
-      />
+      <HeroSection />
       <SocialProof />
       <ProblemSection />
       <FeaturesSection />
