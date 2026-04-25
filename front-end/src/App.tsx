@@ -1,15 +1,16 @@
 /**
- * App.tsx — Roteamento baseado em hash (sem React Router por enquanto).
+ * App.tsx — Roteamento com React Router v6 + HashRouter.
  *
- * Rotas disponíveis:
- *   #/          → Landing page
- *   #/cadastro  → Página de cadastro
+ * HashRouter usa o fragmento da URL (#) para navegar,
+ * o que funciona perfeitamente com Vite dev server e
+ * em qualquer hospedagem estática sem configuração de servidor.
  *
- * Quando React Router for adicionado, substituir o useHashRouter
- * pelo <BrowserRouter> com <Routes>.
+ * Rotas:
+ *   /          → Landing page
+ *   /cadastro  → Página de cadastro
  */
 
-import { useState, useEffect } from 'react';
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { SocialProof } from './components/SocialProof';
@@ -23,45 +24,19 @@ import { TrustSection } from './components/TrustSection';
 import { Footer } from './components/Footer';
 import { SignUpPage } from './pages/SignUpPage';
 
-type Route = 'home' | 'signup';
+// ─── Landing Page ──────────────────────────────────────────────────────────────
+function LandingPage() {
+  const navigate = useNavigate();
 
-function getRouteFromHash(): Route {
-  return window.location.hash === '#/cadastro' ? 'signup' : 'home';
-}
-
-export default function App() {
-  const [route, setRoute] = useState<Route>(getRouteFromHash);
-
-  // Sincroniza o estado com mudanças no hash (botão voltar do browser incluído)
-  useEffect(() => {
-    const onHashChange = () => setRoute(getRouteFromHash());
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
-
-  /**
-   * Função de navegação centralizada.
-   * Toda mudança de rota passa por aqui — nunca via href direto.
-   */
-  const navigateTo = (target: Route) => {
-    const hash = target === 'home' ? '#/' : `#/${target}`;
-    window.location.hash = hash;
+  const goToSignUp = () => {
+    navigate('/cadastro');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (route === 'signup') {
-    return <SignUpPage onNavigateHome={() => navigateTo('home')} />;
-  }
-
   return (
     <div className="min-h-screen text-slate-800 relative">
-      {/*
-       * onNavigateSignUp é passado explicitamente para cada componente
-       * que precisa do botão de CTA — nunca via Context ou prop drilling desnecessário.
-       * Navbar e HeroSection são os dois pontos de entrada de cadastro na landing.
-       */}
-      <Navbar onNavigateSignUp={() => navigateTo('signup')} />
-      <HeroSection onNavigateSignUp={() => navigateTo('signup')} />
+      <Navbar onNavigateSignUp={goToSignUp} />
+      <HeroSection onNavigateSignUp={goToSignUp} />
       <SocialProof />
       <ProblemSection />
       <FeaturesSection />
@@ -72,5 +47,33 @@ export default function App() {
       <TrustSection />
       <Footer />
     </div>
+  );
+}
+
+// ─── Signup Page wrapper ───────────────────────────────────────────────────────
+function SignUpRoute() {
+  const navigate = useNavigate();
+
+  return (
+    <SignUpPage
+      onNavigateHome={() => {
+        navigate('/');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }}
+    />
+  );
+}
+
+// ─── Root ──────────────────────────────────────────────────────────────────────
+export default function App() {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/cadastro" element={<SignUpRoute />} />
+        {/* Fallback: qualquer rota desconhecida volta para home */}
+        <Route path="*" element={<LandingPage />} />
+      </Routes>
+    </HashRouter>
   );
 }
