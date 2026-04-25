@@ -1,7 +1,20 @@
+/**
+ * Navbar — barra de navegação fixa com scroll detection e menu mobile.
+ *
+ * Props:
+ *   onNavigateSignUp — callback chamado pelo botão de CTA principal.
+ *                      Desacoplado da navegação para facilitar futura
+ *                      migração para React Router.
+ */
+
 import { useState, useEffect } from 'react';
 import { Scale, Menu, X, LogIn } from 'lucide-react';
 
-export function Navbar() {
+interface NavbarProps {
+  onNavigateSignUp: () => void;
+}
+
+export function Navbar({ onNavigateSignUp }: NavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -10,6 +23,8 @@ export function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const closeMobile = () => setMobileMenuOpen(false);
 
   return (
     <>
@@ -55,10 +70,9 @@ export function Navbar() {
                 Segurança
               </a>
 
-              {/* Divider */}
               <div className="h-5 w-px bg-slate-200" aria-hidden="true" />
 
-              {/* Entrar — link discreto para quem já tem conta */}
+              {/* Entrar — usuários com conta */}
               <a
                 href="/login"
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
@@ -68,20 +82,21 @@ export function Navbar() {
                 Entrar
               </a>
 
-              {/* CTA principal — aponta para âncora de cadastro futura */}
-              <a
-                href="#cadastro"
+              {/* CTA principal */}
+              <button
+                type="button"
+                onClick={onNavigateSignUp}
                 className="btn-primary px-5 py-2.5 text-sm"
               >
                 Teste Grátis
-              </a>
+              </button>
             </div>
 
             {/* Mobile Menu Button */}
             <div className="md:hidden">
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                onClick={() => setMobileMenuOpen((prev) => !prev)}
                 className="text-slate-600"
                 aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
               >
@@ -100,59 +115,44 @@ export function Navbar() {
           aria-modal="true"
           aria-label="Menu de navegação"
           onKeyDown={(e) => {
-            if (e.key === 'Escape') setMobileMenuOpen(false);
+            if (e.key === 'Escape') closeMobile();
           }}
           className="md:hidden fixed inset-0 z-40 glass-panel border-none pt-24 px-4 pb-6 flex flex-col gap-6"
         >
-          <a
-            href="#features"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-medium text-slate-800"
-          >
+          <a href="#features" onClick={closeMobile} className="text-lg font-medium text-slate-800">
             Recursos
           </a>
-          <a
-            href="#solution"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-medium text-slate-800"
-          >
+          <a href="#solution" onClick={closeMobile} className="text-lg font-medium text-slate-800">
             Como Funciona
           </a>
-          <a
-            href="#pricing"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-medium text-slate-800"
-          >
+          <a href="#pricing" onClick={closeMobile} className="text-lg font-medium text-slate-800">
             Planos
           </a>
-          <a
-            href="#security"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-medium text-slate-800"
-          >
+          <a href="#security" onClick={closeMobile} className="text-lg font-medium text-slate-800">
             Segurança
           </a>
 
           <div className="h-px bg-slate-200/50" />
 
-          {/* Entrar — mobile */}
           <a
             href="/login"
-            onClick={() => setMobileMenuOpen(false)}
+            onClick={closeMobile}
             className="inline-flex items-center gap-2 text-base font-medium text-slate-500"
           >
             <LogIn size={16} />
             Já tenho uma conta
           </a>
 
-          {/* CTA principal — mobile */}
-          <a
-            href="#cadastro"
-            onClick={() => setMobileMenuOpen(false)}
-            className="btn-primary w-full py-3 rounded-xl text-lg font-semibold mt-2 text-center block"
+          <button
+            type="button"
+            onClick={() => {
+              closeMobile();
+              onNavigateSignUp();
+            }}
+            className="btn-primary w-full py-3 rounded-xl text-lg font-semibold mt-2"
           >
             Teste Grátis de 7 Dias
-          </a>
+          </button>
         </div>
       )}
     </>
