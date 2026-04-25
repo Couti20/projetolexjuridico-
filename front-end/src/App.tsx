@@ -20,7 +20,38 @@ import { Icon3D } from './ui/Icon3D';
 import { FeatureCard } from './ui/FeatureCard';
 import { FaqItem } from './ui/FaqItem';
 
+<<<<<<< HEAD:front-end/src/App.tsx
 const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+=======
+const Icon3D = ({ icon: Icon, colorType = "blue" }: { icon: any, colorType?: "blue" | "slate" | "red" }) => {
+  const colors = {
+    blue: "from-blue-400 via-blue-500 to-blue-700 shadow-[inset_0px_-3px_8px_rgba(0,0,0,0.3),inset_0px_3px_8px_rgba(255,255,255,0.4),0_6px_15px_-3px_rgba(37,99,235,0.4)]",
+    slate: "from-slate-600 via-slate-700 to-slate-900 shadow-[inset_0px_-3px_8px_rgba(0,0,0,0.4),inset_0px_3px_8px_rgba(255,255,255,0.2),0_6px_15px_-3px_rgba(15,23,42,0.4)]",
+    red: "from-rose-400 via-rose-500 to-rose-700 shadow-[inset_0px_-3px_8px_rgba(0,0,0,0.3),inset_0px_3px_8px_rgba(255,255,255,0.4),0_6px_15px_-3px_rgba(225,29,72,0.4)]",
+  };
+
+  return (
+    <div className="relative w-14 h-14 group perspective-1000 mb-6">
+       <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-8 h-2 bg-slate-900/40 blur-[4px] rounded-full transition-all duration-300 group-hover:scale-75 group-hover:opacity-50"></div>
+       <div className={`absolute inset-0 bg-gradient-to-br ${colors[colorType]} rounded-2xl transition-transform duration-300 group-hover:-translate-y-1.5 flex items-center justify-center overflow-hidden border border-white/20`}>
+          <div className="absolute top-0 inset-x-0 h-[45%] bg-gradient-to-b from-white/40 to-transparent rounded-t-2xl pointer-events-none"></div>
+          <div className="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent rounded-b-2xl pointer-events-none"></div>
+          <Icon size={26} className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] relative z-10 transform transition-transform duration-300 group-hover:scale-110 group-hover:rotate-y-12" strokeWidth={2.5} />
+       </div>
+    </div>
+  );
+}
+
+const weekData = [
+  { name: 'Seg', prazos: 4, fill: 'rgba(255,255,255,0.1)' },
+  { name: 'Ter', prazos: 7, fill: 'rgba(255,255,255,0.2)' },
+  { name: 'Qua', prazos: 15, isPico: true, fill: '#3B82F6' },
+  { name: 'Qui', prazos: 6, fill: 'rgba(255,255,255,0.15)' },
+  { name: 'Sex', prazos: 3, fill: 'rgba(255,255,255,0.08)' },
+];
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+>>>>>>> ec46e3c1ac5f7cbbc6d55a3007eb7e1a7fe4e01e:src/App.tsx
   if (active && payload && payload.length) {
     const rawValue = payload[0]?.value;
     const value = typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
@@ -86,7 +117,6 @@ export default function App() {
               <span className="text-xl font-bold tracking-tight text-slate-800">PrazoAlert</span>
             </div>
             
-            {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Recursos</a>
               <a href="#solution" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Como Funciona</a>
@@ -99,7 +129,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Mobile Menu Button */}
             <div className="md:hidden">
               <button
                 type="button"
@@ -217,7 +246,6 @@ export default function App() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="relative w-full h-[450px] sm:h-[500px] lg:h-[600px] mt-16 lg:mt-0 flex items-center justify-center lg:justify-end"
             >
-              {/* Floating Impact Badge */}
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -233,10 +261,8 @@ export default function App() {
                 </div>
               </motion.div>
 
-              {/* Dashboard Preview (CSS Abstract UI) */}
               <div className="absolute top-10 sm:top-12 lg:top-4 right-0 w-[95%] sm:w-[85%] lg:w-[500px] max-w-full glass-dark p-3 sm:p-5 z-10 rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl transform lg:translate-x-12 lg:-translate-y-4">
                 <div className="w-full h-full bg-slate-900/50 rounded-xl sm:rounded-2xl border border-slate-700/50 p-4 flex flex-col gap-4">
-                   {/* Header fake */}
                    <div className="flex justify-between items-center pb-3 border-b border-slate-700/50">
                       <div className="flex items-center gap-3">
                          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center"><BarChart3 size={16} className="text-white"/></div>
@@ -247,7 +273,6 @@ export default function App() {
                          <div className="w-6 h-6 rounded-md bg-slate-800 border border-slate-700"></div>
                       </div>
                    </div>
-                   {/* Panel Content fake */}
                    <div className="flex gap-4 h-[200px] sm:h-[240px]">
                       <div className="flex-1 border border-slate-700/50 rounded-xl bg-slate-800/30 p-3 sm:p-4 flex flex-col">
                          <div className="w-1/2 h-3 bg-slate-600 rounded-md mb-2"></div>
@@ -279,21 +304,17 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Phone Mockup with WhatsApp Alert */}
               <motion.div 
                 initial={{ y: 100, opacity: 0, rotate: -5 }}
                 animate={{ y: 0, opacity: 1, rotate: -5 }}
                 transition={{ duration: 0.8, delay: 0.8, type: "spring", bounce: 0.4 }}
                 className="absolute left-0 sm:left-4 lg:-left-2 xl:-left-8 -bottom-6 sm:bottom-0 lg:bottom-12 z-20 w-[220px] sm:w-[260px] h-[400px] sm:h-[480px] bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] p-1.5 sm:p-2 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-[4px] border-slate-800 transform origin-bottom-left"
               >
-                {/* Screen */}
                 <div className="relative w-full h-full bg-[#E5DDD5] rounded-[2rem] overflow-hidden flex flex-col">
-                  {/* Status Bar / Notch */}
                   <div className="absolute top-0 inset-x-0 h-6 flex justify-center z-50">
                     <div className="w-24 h-5 bg-slate-900 rounded-b-xl"></div>
                   </div>
                   
-                  {/* Push Notification (Banner sliding down and up) */}
                   <motion.div
                     animate={{ 
                       y: [-100, 8, 8, 8, -100],
@@ -322,7 +343,6 @@ export default function App() {
                     </div>
                   </motion.div>
 
-                  {/* WhatsApp Header */}
                   <div className="bg-[#075E54] pt-8 pb-3 px-4 flex items-center gap-3 shadow-md z-20">
                     <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shrink-0">
                       <MessageCircle size={18} fill="#25D366" className="text-[#25D366]" />
@@ -333,12 +353,9 @@ export default function App() {
                     </div>
                   </div>
                   
-                  {/* Chat Pattern Background (abstract) */}
                   <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
 
-                  {/* Message Container */}
                   <div className="flex-1 p-3 flex flex-col justify-end pb-12 z-10">
-                    {/* Animated Message Bubble */}
                     <motion.div 
                       initial={{ scale: 0.8, opacity: 0, x: -20 }}
                       animate={{ scale: 1, opacity: 1, x: 0 }}
@@ -360,7 +377,6 @@ export default function App() {
                 </div>
               </motion.div>
 
-              {/* Decorative Blur */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-400/30 rounded-full blur-[80px] -z-10"></div>
             </motion.div>
 
@@ -468,12 +484,11 @@ export default function App() {
           <div className="mb-16 md:flex justify-between items-end">
             <div className="max-w-2xl">
               <h2 className="text-3xl md:text-5xl font-bold mb-6 text-slate-900">Beleza e eficiência em cada tela.</h2>
-              <p className="text-slate-600 text-lg">Um dashboard planejado por advogados, para advogados. Sem poluição visual, apenas o que  importa.</p>
+              <p className="text-slate-600 text-lg">Um dashboard planejado por advogados, para advogados. Sem poluição visual, apenas o que importa.</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[400px]">
-            {/* WhatsApp Visual */}
             <div className="rounded-3xl p-8 flex flex-col relative overflow-hidden group shadow-xl" style={{background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)'}}>
               <div className="w-12 h-12 mb-6 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-sm relative z-10">
                  <MessageCircle className="text-white" />
@@ -502,7 +517,6 @@ export default function App() {
             </div>
 
             <div className="grid grid-rows-2 gap-6 h-full">
-              {/* Minor Visual 1 */}
               <div className="glass-card p-8 relative overflow-hidden group">
                 <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center mb-6 shadow-md group-hover:scale-110 transition-transform">
                   <ListTodo size={24} className="text-white" />
@@ -511,7 +525,6 @@ export default function App() {
                 <p className="text-slate-600 text-sm">Seu briefing com demandas diárias enviado rigorosamente no seu horário favorito.</p>
               </div>
 
-              {/* Minor Visual 2 (Dashboard Preview) */}
               <div className="rounded-3xl bg-slate-900 p-0 relative overflow-hidden shadow-xl group cursor-crosshair">
                  <div className="absolute inset-x-3 bottom-24 top-6 opacity-90 transition-opacity duration-300 group-hover:opacity-100 flex flex-col justify-end pointer-events-auto z-10">
                     <div className="w-full h-32">
@@ -614,7 +627,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Office Plan */}
+            {/* Office Plan - bug corrigido: flexItems-center -> flex items-center */}
             <div className="glass-dark p-8 relative transform md:-translate-y-4">
               <div className="absolute top-0 right-8 -translate-y-1/2">
                 <span className="bg-blue-600 text-white px-3 py-1 text-sm font-bold uppercase tracking-wider rounded-full shadow-lg">Mais Popular</span>
