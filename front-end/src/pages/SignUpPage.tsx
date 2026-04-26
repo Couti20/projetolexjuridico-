@@ -192,6 +192,17 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
                     disabled={isLoading}
                   />
 
+                  <PasswordInput
+                    id="confirmPassword"
+                    label="Confirmar Senha"
+                    autoComplete="new-password"
+                    placeholder="Digite novamente sua senha"
+                    value={form.confirmPassword}
+                    onChange={(e) => updateField('confirmPassword', e.target.value)}
+                    error={errors.confirmPassword}
+                    disabled={isLoading}
+                  />
+
                   {/* Força da senha — visual feedback */}
                   {form.password.length > 0 && (
                     <PasswordStrengthBar password={form.password} />

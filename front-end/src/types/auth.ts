@@ -7,6 +7,7 @@ export interface SignUpFormData {
   fullName: string;
   email: string;
   password: string;
+  confirmPassword: string;
   acceptedTerms: boolean;
 }
 
@@ -14,6 +15,7 @@ export interface SignUpFormErrors {
   fullName?: string;
   email?: string;
   password?: string;
+  confirmPassword?: string;
   acceptedTerms?: string;
 }
 

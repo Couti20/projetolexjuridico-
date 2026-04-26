@@ -13,6 +13,7 @@ const INITIAL_FORM: SignUpFormData = {
   fullName: '',
   email: '',
   password: '',
+  confirmPassword: '',
   acceptedTerms: false,
 };
 
@@ -40,6 +41,12 @@ function validateForm(data: SignUpFormData): SignUpFormErrors {
 
   const passwordError = validatePassword(data.password);
   if (passwordError) errors.password = passwordError;
+
+  if (!data.confirmPassword) {
+    errors.confirmPassword = 'Confirme sua senha.';
+  } else if (data.password !== data.confirmPassword) {
+    errors.confirmPassword = 'As senhas não coincidem.';
+  }
 
   if (!data.acceptedTerms) {
     errors.acceptedTerms = 'Você precisa aceitar os termos para continuar.';
