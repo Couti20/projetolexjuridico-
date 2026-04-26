@@ -1,8 +1,8 @@
 /**
- * Tipos relacionados ao fluxo de autenticação (cadastro e login).
- * Centralizado aqui para reuso entre hooks, páginas e futuros serviços de API.
+ * Tipos do fluxo de autenticação (cadastro e login).
  */
 
+// ── Cadastro ────────────────────────────────────────────────
 export interface SignUpFormData {
   fullName: string;
   email: string;
@@ -20,3 +20,17 @@ export interface SignUpFormErrors {
 }
 
 export type SignUpStatus = 'idle' | 'loading' | 'success' | 'error';
+
+// ── Login ───────────────────────────────────────────────────
+export interface LoginFormData {
+  email: string;
+  password: string;
+  rememberMe: boolean;
+}
+
+export interface LoginFormErrors {
+  email?: string;
+  password?: string;
+}
+
+export type LoginStatus = 'idle' | 'loading' | 'success' | 'error';

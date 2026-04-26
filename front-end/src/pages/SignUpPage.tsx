@@ -10,14 +10,15 @@
 
 import { Scale, CheckCircle2, ShieldCheck, Clock, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { useSignUpForm } from '../hooks/useSignUpForm';
 import { InputField } from '../ui/InputField';
 import { PasswordInput } from '../ui/PasswordInput';
 
 const BENEFITS = [
-  { icon: Clock, text: 'Monitore prazos 24h sem abrir portais' },
+  { icon: Clock,      text: 'Monitore prazos 24h sem abrir portais' },
   { icon: ShieldCheck, text: 'Dados protegidos com criptografia' },
-  { icon: Users, text: '+2.000 advogados já usam o Lex' },
+  { icon: Users,      text: '+2.000 advogados já usam o Lex' },
 ];
 
 function SuccessState({ onBack }: { onBack: () => void }) {
@@ -48,6 +49,7 @@ function SuccessState({ onBack }: { onBack: () => void }) {
 }
 
 export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
+  const navigate = useNavigate();
   const { form, errors, status, serverError, updateField, handleSubmit } = useSignUpForm();
 
   const isLoading = status === 'loading';
@@ -57,7 +59,6 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
     <div className="min-h-screen flex">
       {/* ── Painel Esquerdo — Branding ── */}
       <div className="hidden lg:flex lg:w-5/12 xl:w-2/5 bg-slate-900 flex-col justify-between p-10 xl:p-14">
-        {/* Logo */}
         <button
           type="button"
           onClick={onNavigateHome}
@@ -70,7 +71,6 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
           <span className="text-xl font-bold text-white tracking-tight">Lex</span>
         </button>
 
-        {/* Headline + Depoimento */}
         <div className="space-y-8">
           <div>
             <h2 className="text-3xl xl:text-4xl font-bold text-white leading-tight mb-3">
@@ -80,7 +80,6 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
             <div className="h-0.5 w-16 bg-blue-600 rounded-full" />
           </div>
 
-          {/* Benefícios */}
           <ul className="space-y-3">
             {BENEFITS.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3">
@@ -92,7 +91,6 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
             ))}
           </ul>
 
-          {/* Depoimento */}
           <figure className="border-l-2 border-blue-600 pl-5">
             <blockquote>
               <p className="text-slate-300 text-sm leading-relaxed italic">
@@ -114,7 +112,6 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
       {/* ── Painel Direito — Formulário ── */}
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
         <div className="w-full max-w-md">
-          {/* Logo mobile */}
           <button
             type="button"
             onClick={onNavigateHome}
@@ -138,13 +135,11 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.3 }}
               >
-                {/* Cabeçalho */}
                 <div className="mb-8">
                   <h1 className="text-2xl font-bold text-slate-900 mb-1">Comece agora</h1>
                   <p className="text-slate-500 text-sm">Teste grátis por 7 dias, sem compromisso.</p>
                 </div>
 
-                {/* Erro de servidor */}
                 {serverError && (
                   <div
                     role="alert"
@@ -155,7 +150,6 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
                   </div>
                 )}
 
-                {/* Formulário */}
                 <form onSubmit={handleSubmit} noValidate className="space-y-5">
                   <InputField
                     id="fullName"
@@ -202,13 +196,10 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
                     error={errors.confirmPassword}
                     disabled={isLoading}
                   />
-
-                  {/* Força da senha — visual feedback */}
                   {form.password.length > 0 && (
                     <PasswordStrengthBar password={form.password} />
                   )}
 
-                  {/* Checkbox de termos */}
                   <div className="space-y-1">
                     <label className="flex items-start gap-3 cursor-pointer group">
                       <input
@@ -222,34 +213,18 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
                       />
                       <span className="text-sm text-slate-600 leading-relaxed">
                         Eu aceito os{' '}
-                        <a
-                          href="/termos"
-                          className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium"
-                        >
-                          Termos de Uso
-                        </a>{' '}
+                        <a href="/termos" className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium">Termos de Uso</a>{' '}
                         e a{' '}
-                        <a
-                          href="/privacidade"
-                          className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium"
-                        >
-                          Política de Privacidade
-                        </a>
-                        .
+                        <a href="/privacidade" className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium">Política de Privacidade</a>.
                       </span>
                     </label>
                     {errors.acceptedTerms && (
-                      <p
-                        id="terms-error"
-                        role="alert"
-                        className="text-xs text-red-600 font-medium pl-7"
-                      >
+                      <p id="terms-error" role="alert" className="text-xs text-red-600 font-medium pl-7">
                         {errors.acceptedTerms}
                       </p>
                     )}
                   </div>
 
-                  {/* Botão de submissão */}
                   <button
                     type="submit"
                     disabled={isLoading}
@@ -257,10 +232,7 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
                   >
                     {isLoading ? (
                       <>
-                        <span
-                          className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin"
-                          aria-hidden="true"
-                        />
+                        <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true" />
                         Criando conta...
                       </>
                     ) : (
@@ -269,15 +241,15 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
                   </button>
                 </form>
 
-                {/* Rodapé do form */}
                 <p className="mt-6 text-center text-sm text-slate-500">
                   Já tem uma conta?{' '}
-                  <a
-                    href="/login"
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login')}
                     className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
                   >
                     Fazer Login
-                  </a>
+                  </button>
                 </p>
               </motion.div>
             )}
@@ -288,9 +260,6 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
   );
 }
 
-/**
- * Barra visual de força de senha — componente interno, não exportado.
- */
 function getPasswordStrength(password: string): { level: number; label: string; color: string } {
   let score = 0;
   if (password.length >= 8) score++;
@@ -299,20 +268,18 @@ function getPasswordStrength(password: string): { level: number; label: string; 
   if (/[0-9]/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
 
-  if (score <= 1) return { level: 1, label: 'Fraca', color: 'bg-red-400' };
+  if (score <= 1) return { level: 1, label: 'Fraca',    color: 'bg-red-400' };
   if (score <= 2) return { level: 2, label: 'Razoável', color: 'bg-orange-400' };
-  if (score <= 3) return { level: 3, label: 'Boa', color: 'bg-yellow-400' };
-  return { level: 4, label: 'Forte', color: 'bg-emerald-500' };
+  if (score <= 3) return { level: 3, label: 'Boa',      color: 'bg-yellow-400' };
+  return             { level: 4, label: 'Forte',    color: 'bg-emerald-500' };
 }
 
 function PasswordStrengthBar({ password }: { password: string }) {
   const { level, label, color } = getPasswordStrength(password);
-  const bars = [1, 2, 3, 4];
-
   return (
     <div className="space-y-1.5" aria-live="polite" aria-label={`Força da senha: ${label}`}>
       <div className="flex gap-1.5">
-        {bars.map((bar) => (
+        {[1, 2, 3, 4].map((bar) => (
           <div
             key={bar}
             className={`h-1 flex-1 rounded-full transition-all duration-300 ${
@@ -323,19 +290,11 @@ function PasswordStrengthBar({ password }: { password: string }) {
       </div>
       <p className="text-xs text-slate-500">
         Força:{' '}
-        <span
-          className={`font-medium ${
-            level === 1
-              ? 'text-red-500'
-              : level === 2
-                ? 'text-orange-500'
-                : level === 3
-                  ? 'text-yellow-600'
-                  : 'text-emerald-600'
-          }`}
-        >
-          {label}
-        </span>
+        <span className={`font-medium ${
+          level === 1 ? 'text-red-500' :
+          level === 2 ? 'text-orange-500' :
+          level === 3 ? 'text-yellow-600' : 'text-emerald-600'
+        }`}>{label}</span>
       </p>
     </div>
   );

@@ -1,13 +1,10 @@
 /**
  * App.tsx — Roteamento com React Router v6 + HashRouter.
  *
- * HashRouter usa o fragmento da URL (#) para navegar,
- * o que funciona perfeitamente com Vite dev server e
- * em qualquer hospedagem estática sem configuração de servidor.
- *
  * Rotas:
  *   /          → Landing page
- *   /cadastro  → Página de cadastro
+ *   /cadastro  → Tela de cadastro
+ *   /login     → Tela de login
  */
 
 import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
@@ -23,20 +20,25 @@ import { FaqSection } from './components/FaqSection';
 import { TrustSection } from './components/TrustSection';
 import { Footer } from './components/Footer';
 import { SignUpPage } from './pages/SignUpPage';
+import { LoginPage } from './pages/LoginPage';
 
-// ─── Landing Page ──────────────────────────────────────────────────────────────
-function LandingPage() {
+// ── Helpers de navegação ──────────────────────────────────────────────────────
+function useAppNavigation() {
   const navigate = useNavigate();
-
-  const goToSignUp = () => {
-    navigate('/cadastro');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  return {
+    goHome:   () => { navigate('/');          window.scrollTo({ top: 0 }); },
+    goSignUp: () => { navigate('/cadastro');  window.scrollTo({ top: 0 }); },
+    goLogin:  () => { navigate('/login');     window.scrollTo({ top: 0 }); },
   };
+}
 
+// ── Landing Page ──────────────────────────────────────────────────────────────
+function LandingPage() {
+  const { goSignUp } = useAppNavigation();
   return (
     <div className="min-h-screen text-slate-800 relative">
-      <Navbar onNavigateSignUp={goToSignUp} />
-      <HeroSection onNavigateSignUp={goToSignUp} />
+      <Navbar onNavigateSignUp={goSignUp} />
+      <HeroSection onNavigateSignUp={goSignUp} />
       <SocialProof />
       <ProblemSection />
       <FeaturesSection />
@@ -50,29 +52,27 @@ function LandingPage() {
   );
 }
 
-// ─── Signup Page wrapper ───────────────────────────────────────────────────────
+// ── Cadastro ──────────────────────────────────────────────────────────────────
 function SignUpRoute() {
-  const navigate = useNavigate();
-
-  return (
-    <SignUpPage
-      onNavigateHome={() => {
-        navigate('/');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }}
-    />
-  );
+  const { goHome } = useAppNavigation();
+  return <SignUpPage onNavigateHome={goHome} />;
 }
 
-// ─── Root ──────────────────────────────────────────────────────────────────────
+// ── Login ─────────────────────────────────────────────────────────────────────
+function LoginRoute() {
+  const { goHome, goSignUp } = useAppNavigation();
+  return <LoginPage onNavigateHome={goHome} onNavigateSignUp={goSignUp} />;
+}
+
+// ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/"          element={<LandingPage />} />
         <Route path="/cadastro" element={<SignUpRoute />} />
-        {/* Fallback: qualquer rota desconhecida volta para home */}
-        <Route path="*" element={<LandingPage />} />
+        <Route path="/login"    element={<LoginRoute />} />
+        <Route path="*"          element={<LandingPage />} />
       </Routes>
     </HashRouter>
   );
