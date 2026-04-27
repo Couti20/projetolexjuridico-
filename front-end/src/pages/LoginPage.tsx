@@ -15,21 +15,27 @@ import { InputField } from '../ui/InputField';
 import { PasswordInput } from '../ui/PasswordInput';
 
 const HIGHLIGHTS = [
-  { icon: Zap, text: 'Briefing diário de prazos no WhatsApp' },
-  { icon: Clock, text: 'Monitoramento 24h sem abrir portais' },
+  { icon: Zap,         text: 'Briefing diário de prazos no WhatsApp' },
+  { icon: Clock,       text: 'Monitoramento 24h sem abrir portais' },
   { icon: ShieldCheck, text: 'Acesso seguro com criptografia de ponta' },
 ];
 
 interface LoginPageProps {
-  onNavigateHome: () => void;
-  onNavigateSignUp: () => void;
+  onNavigateHome:    () => void;
+  onNavigateSignUp:  () => void;
+  onNavigateSetup:   () => void;
 }
 
-export function LoginPage({ onNavigateHome, onNavigateSignUp }: LoginPageProps) {
+export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }: LoginPageProps) {
   const { form, errors, status, serverError, updateField, handleSubmit } = useLoginForm();
 
   const isLoading = status === 'loading';
   const isSuccess = status === 'success';
+
+  // Redireciona para o setup após login bem-sucedido
+  if (isSuccess) {
+    setTimeout(onNavigateSetup, 1600);
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -122,7 +128,7 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp }: LoginPageProps) 
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">Acesso autorizado!</h2>
                   <p className="text-slate-500 max-w-xs">
-                    Redirecionando para o seu painel...
+                    Redirecionando para a configuração...
                   </p>
                 </div>
                 <div className="h-1 w-48 bg-slate-100 rounded-full overflow-hidden">
@@ -186,14 +192,15 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp }: LoginPageProps) 
                       error={errors.password}
                       disabled={isLoading}
                     />
-                    {/* Esqueceu a senha — alinhado à direita abaixo do input */}
+                    {/* Esqueceu a senha — corrigido: sem href hardcoded */}
                     <div className="flex justify-end">
-                      <a
-                        href="/recuperar-senha"
+                      <button
+                        type="button"
+                        onClick={onNavigateSetup}
                         className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
                       >
                         Esqueceu a senha?
-                      </a>
+                      </button>
                     </div>
                   </div>
 
