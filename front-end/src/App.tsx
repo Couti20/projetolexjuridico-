@@ -2,9 +2,10 @@
  * App.tsx — Roteamento com React Router v6 + HashRouter.
  *
  * Rotas:
- *   /          → Landing page
- *   /cadastro  → Tela de cadastro
- *   /login     → Tela de login
+ *   /              → Landing page
+ *   /cadastro      → Tela de cadastro
+ *   /login         → Tela de login
+ *   /configuracao  → Onboarding pós-login (OAB + WhatsApp)
  */
 
 import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
@@ -21,14 +22,17 @@ import { TrustSection } from './components/TrustSection';
 import { Footer } from './components/Footer';
 import { SignUpPage } from './pages/SignUpPage';
 import { LoginPage } from './pages/LoginPage';
+import { SetupPage } from './pages/SetupPage';
 
 // ── Helpers de navegação ──────────────────────────────────────────────────────
 function useAppNavigation() {
   const navigate = useNavigate();
   return {
-    goHome:   () => { navigate('/');          window.scrollTo({ top: 0 }); },
-    goSignUp: () => { navigate('/cadastro');  window.scrollTo({ top: 0 }); },
-    goLogin:  () => { navigate('/login');     window.scrollTo({ top: 0 }); },
+    goHome:      () => { navigate('/');             window.scrollTo({ top: 0 }); },
+    goSignUp:    () => { navigate('/cadastro');     window.scrollTo({ top: 0 }); },
+    goLogin:     () => { navigate('/login');        window.scrollTo({ top: 0 }); },
+    goSetup:     () => { navigate('/configuracao'); window.scrollTo({ top: 0 }); },
+    goDashboard: () => { navigate('/dashboard');    window.scrollTo({ top: 0 }); },
   };
 }
 
@@ -78,8 +82,14 @@ function SignUpRoute() {
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 function LoginRoute() {
-  const { goHome, goSignUp } = useAppNavigation();
-  return <LoginPage onNavigateHome={goHome} onNavigateSignUp={goSignUp} />;
+  const { goHome, goSignUp, goSetup } = useAppNavigation();
+  return <LoginPage onNavigateHome={goHome} onNavigateSignUp={goSignUp} onNavigateSetup={goSetup} />;
+}
+
+// ── Configuração inicial ──────────────────────────────────────────────────────
+function SetupRoute() {
+  const { goDashboard, goHome } = useAppNavigation();
+  return <SetupPage onSkip={goHome} onNavigateDashboard={goDashboard} />;
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────
@@ -87,10 +97,11 @@ export default function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/"          element={<LandingPage />} />
-        <Route path="/cadastro" element={<SignUpRoute />} />
-        <Route path="/login"    element={<LoginRoute />} />
-        <Route path="*"          element={<LandingPage />} />
+        <Route path="/"             element={<LandingPage />} />
+        <Route path="/cadastro"     element={<SignUpRoute />} />
+        <Route path="/login"        element={<LoginRoute />} />
+        <Route path="/configuracao" element={<SetupRoute />} />
+        <Route path="*"             element={<LandingPage />} />
       </Routes>
     </HashRouter>
   );
