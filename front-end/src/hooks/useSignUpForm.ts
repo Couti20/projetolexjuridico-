@@ -22,9 +22,9 @@ function validateEmail(email: string): boolean {
 }
 
 function validatePassword(password: string): string | undefined {
-  if (password.length < 8) return 'A senha deve ter pelo menos 8 caracteres.';
-  if (!/[A-Z]/.test(password)) return 'Inclua ao menos uma letra maiúscula.';
-  if (!/[0-9]/.test(password)) return 'Inclua ao menos um número.';
+  if (password.length < 8) return 'Mínimo de 8 caracteres.';
+  if (!/[A-Z]/.test(password)) return 'Inclua 1 letra maiúscula.';
+  if (!/[0-9]/.test(password)) return 'Inclua 1 número.';
   return undefined;
 }
 
@@ -45,11 +45,11 @@ function validateForm(data: SignUpFormData): SignUpFormErrors {
   if (!data.confirmPassword) {
     errors.confirmPassword = 'Confirme sua senha.';
   } else if (data.password !== data.confirmPassword) {
-    errors.confirmPassword = 'As senhas não coincidem.';
+    errors.confirmPassword = 'Senhas diferentes.';
   }
 
   if (!data.acceptedTerms) {
-    errors.acceptedTerms = 'Você precisa aceitar os termos para continuar.';
+    errors.acceptedTerms = 'Aceite os termos.';
   }
 
   return errors;
@@ -61,15 +61,51 @@ export function useSignUpForm() {
   const [status, setStatus] = useState<SignUpStatus>('idle');
   const [serverError, setServerError] = useState<string | null>(null);
 
+  const applyRealtimeValidation = useCallback(
+    <K extends keyof SignUpFormData>(field: K, data: SignUpFormData, currentErrors: SignUpFormErrors) => {
+      const nextErrors: SignUpFormErrors = { ...currentErrors };
+
+      if (field === 'password') {
+        nextErrors.password = validatePassword(data.password);
+        if (data.confirmPassword) {
+          nextErrors.confirmPassword = data.password === data.confirmPassword ? undefined : 'Senhas diferentes.';
+        }
+      }
+
+      if (field === 'confirmPassword') {
+        if (!data.confirmPassword) {
+          nextErrors.confirmPassword = undefined;
+        } else {
+          nextErrors.confirmPassword = data.password === data.confirmPassword ? undefined : 'Senhas diferentes.';
+        }
+      }
+
+      if (field === 'acceptedTerms') {
+        nextErrors.acceptedTerms = data.acceptedTerms ? undefined : 'Aceite os termos.';
+      }
+
+      if (field === 'fullName' && nextErrors.fullName) {
+        nextErrors.fullName = undefined;
+      }
+
+      if (field === 'email' && nextErrors.email) {
+        nextErrors.email = undefined;
+      }
+
+      return nextErrors;
+    },
+    [],
+  );
+
   const updateField = useCallback(
     <K extends keyof SignUpFormData>(field: K, value: SignUpFormData[K]) => {
-      setForm((prev) => ({ ...prev, [field]: value }));
-      // Limpa o erro do campo ao editar
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: undefined }));
-      }
+      setForm((prev) => {
+        const next = { ...prev, [field]: value };
+        setErrors((currentErrors) => applyRealtimeValidation(field, next, currentErrors));
+        return next;
+      });
     },
-    [errors],
+    [applyRealtimeValidation],
   );
 
   const handleSubmit = useCallback(

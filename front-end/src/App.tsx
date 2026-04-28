@@ -34,28 +34,46 @@ function useAppNavigation() {
 
 // ── Landing Page ──────────────────────────────────────────────────────────────
 function LandingPage() {
-  const { goSignUp } = useAppNavigation();
+  const { goSignUp, goLogin } = useAppNavigation();
   return (
-    <div className="min-h-screen text-slate-800 relative">
-      <Navbar onNavigateSignUp={goSignUp} />
-      <HeroSection onNavigateSignUp={goSignUp} />
+    <div className="min-h-screen text-slate-800 relative pb-24 md:pb-0">
+      <Navbar onNavigateSignUp={goSignUp} onNavigateLogin={goLogin} />
+      <HeroSection onNavigateSignUp={goSignUp} onNavigateLogin={goLogin} />
       <SocialProof />
       <ProblemSection />
       <FeaturesSection />
       <BentoSection />
       <TestimonialSection />
-      <PricingSection />
+      <PricingSection onNavigateSignUp={goSignUp} onNavigateLogin={goLogin} />
       <FaqSection />
       <TrustSection />
       <Footer />
+      <div className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={goLogin}
+            className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-medium text-slate-700"
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            onClick={goSignUp}
+            className="btn-primary flex-[1.2] px-4 py-2.5 text-sm font-semibold"
+          >
+            Teste grátis
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ── Cadastro ──────────────────────────────────────────────────────────────────
 function SignUpRoute() {
-  const { goHome } = useAppNavigation();
-  return <SignUpPage onNavigateHome={goHome} />;
+  const { goHome, goLogin } = useAppNavigation();
+  return <SignUpPage onNavigateHome={goHome} onNavigateLogin={goLogin} />;
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────────

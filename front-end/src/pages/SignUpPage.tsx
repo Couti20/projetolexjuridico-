@@ -10,7 +10,6 @@
 
 import { Scale, CheckCircle2, ShieldCheck, Clock, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
 import { useSignUpForm } from '../hooks/useSignUpForm';
 import { InputField } from '../ui/InputField';
 import { PasswordInput } from '../ui/PasswordInput';
@@ -21,7 +20,12 @@ const BENEFITS = [
   { icon: Users,      text: '+2.000 advogados já usam o Lex' },
 ];
 
-function SuccessState({ onBack }: { onBack: () => void }) {
+interface SuccessStateProps {
+  onBack: () => void;
+  onGoLogin: () => void;
+}
+
+function SuccessState({ onBack, onGoLogin }: SuccessStateProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -34,22 +38,31 @@ function SuccessState({ onBack }: { onBack: () => void }) {
       <div>
         <h2 className="text-2xl font-bold text-slate-900 mb-2">Conta criada!</h2>
         <p className="text-slate-500 max-w-xs">
-          Enviamos um link de confirmação para seu e-mail. Verifique sua caixa de entrada.
+          Enviamos um link de confirmação para seu e-mail. Depois da confirmação, faça login para entrar no painel.
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onBack}
-        className="text-sm text-blue-600 hover:text-blue-700 font-medium underline underline-offset-2 transition-colors"
-      >
-        Voltar ao início
-      </button>
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        <button type="button" onClick={onGoLogin} className="btn-primary px-5 py-2.5 text-sm font-semibold">
+          Ir para login
+        </button>
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-sm text-blue-600 hover:text-blue-700 font-medium underline underline-offset-2 transition-colors"
+        >
+          Voltar ao início
+        </button>
+      </div>
     </motion.div>
   );
 }
 
-export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
-  const navigate = useNavigate();
+interface SignUpPageProps {
+  onNavigateHome: () => void;
+  onNavigateLogin: () => void;
+}
+
+export function SignUpPage({ onNavigateHome, onNavigateLogin }: SignUpPageProps) {
   const { form, errors, status, serverError, updateField, handleSubmit } = useSignUpForm();
 
   const isLoading = status === 'loading';
@@ -126,7 +139,7 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
 
           <AnimatePresence mode="wait">
             {isSuccess ? (
-              <SuccessState key="success" onBack={onNavigateHome} />
+              <SuccessState key="success" onBack={onNavigateHome} onGoLogin={onNavigateLogin} />
             ) : (
               <motion.div
                 key="form"
@@ -242,13 +255,13 @@ export function SignUpPage({ onNavigateHome }: { onNavigateHome: () => void }) {
                 </form>
 
                 <p className="mt-6 text-center text-sm text-slate-500">
-                  Já tem uma conta?{' '}
+                  Já tenho conta?{' '}
                   <button
                     type="button"
-                    onClick={() => navigate('/login')}
+                    onClick={onNavigateLogin}
                     className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
                   >
-                    Fazer Login
+                    Entrar
                   </button>
                 </p>
               </motion.div>

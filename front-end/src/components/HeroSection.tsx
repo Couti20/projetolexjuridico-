@@ -11,9 +11,10 @@ import { Clock, MessageCircle, BarChart3, ArrowRight, ShieldCheck } from 'lucide
 
 interface HeroSectionProps {
   onNavigateSignUp: () => void;
+  onNavigateLogin: () => void;
 }
 
-export function HeroSection({ onNavigateSignUp }: HeroSectionProps) {
+export function HeroSection({ onNavigateSignUp, onNavigateLogin }: HeroSectionProps) {
   return (
     <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -58,11 +59,18 @@ export function HeroSection({ onNavigateSignUp }: HeroSectionProps) {
                 />
               </button>
 
-              <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
-                <ShieldCheck size={15} className="text-emerald-500" />
-                Sem cartão de crédito
-              </span>
+              <button
+                type="button"
+                onClick={onNavigateLogin}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 transition-colors"
+              >
+                Entrar
+              </button>
             </div>
+            <span className="inline-flex items-center gap-1.5 text-sm text-slate-500 mb-10">
+              <ShieldCheck size={15} className="text-emerald-500" />
+              Sem cartão de crédito
+            </span>
 
             {/* Social proof */}
             <div className="flex items-center gap-4 text-sm text-slate-500">

@@ -31,7 +31,7 @@ export function TrustSection() {
             <p className="text-slate-600 text-sm leading-relaxed mb-4">
               Regras comerciais, responsabilidades das partes e condições do período de teste gratuito.
             </p>
-            <p className="text-xs text-slate-500">Canal para dúvidas: privacidade@prazoalert.com.br</p>
+            <p className="text-xs text-slate-500">Canal para dúvidas: privacidade@lex.com.br</p>
           </article>
         </div>
       </div>

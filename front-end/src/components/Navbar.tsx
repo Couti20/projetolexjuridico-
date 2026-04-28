@@ -2,9 +2,8 @@
  * Navbar — barra de navegação fixa com scroll detection e menu mobile.
  *
  * Props:
- *   onNavigateSignUp — callback chamado pelo botão de CTA principal.
- *                      Desacoplado da navegação para facilitar futura
- *                      migração para React Router.
+ *   onNavigateSignUp — callback do CTA principal.
+ *   onNavigateLogin  — callback do botão "Entrar".
  */
 
 import { useState, useEffect } from 'react';
@@ -12,9 +11,10 @@ import { Scale, Menu, X, LogIn } from 'lucide-react';
 
 interface NavbarProps {
   onNavigateSignUp: () => void;
+  onNavigateLogin: () => void;
 }
 
-export function Navbar({ onNavigateSignUp }: NavbarProps) {
+export function Navbar({ onNavigateSignUp, onNavigateLogin }: NavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -73,14 +73,15 @@ export function Navbar({ onNavigateSignUp }: NavbarProps) {
               <div className="h-5 w-px bg-slate-200" aria-hidden="true" />
 
               {/* Entrar — usuários com conta */}
-              <a
-                href="/login"
+              <button
+                type="button"
+                onClick={onNavigateLogin}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
                 title="Já tem uma conta? Entre aqui"
               >
                 <LogIn size={15} />
                 Entrar
-              </a>
+              </button>
 
               {/* CTA principal */}
               <button
@@ -134,14 +135,17 @@ export function Navbar({ onNavigateSignUp }: NavbarProps) {
 
           <div className="h-px bg-slate-200/50" />
 
-          <a
-            href="/login"
-            onClick={closeMobile}
+          <button
+            type="button"
+            onClick={() => {
+              closeMobile();
+              onNavigateLogin();
+            }}
             className="inline-flex items-center gap-2 text-base font-medium text-slate-500"
           >
             <LogIn size={16} />
             Já tenho uma conta
-          </a>
+          </button>
 
           <button
             type="button"
