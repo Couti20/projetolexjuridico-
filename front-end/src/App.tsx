@@ -1,11 +1,14 @@
 /**
  * App.tsx — Roteamento com React Router v6 + HashRouter.
  *
- * Rotas:
+ * Rotas públicas:
  *   /              → Landing page
  *   /cadastro      → Tela de cadastro
  *   /login         → Tela de login
- *   /configuracao  → Onboarding pós-login (OAB + WhatsApp)
+ *
+ * Rotas internas (pós-login):
+ *   /configuracao  → Onboarding (OAB + WhatsApp)
+ *   /dashboard     → Painel principal
  */
 
 import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
@@ -23,6 +26,7 @@ import { Footer } from './components/Footer';
 import { SignUpPage } from './pages/SignUpPage';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage } from './pages/SetupPage';
+import { DashboardPage } from './pages/DashboardPage';
 
 // ── Helpers de navegação ──────────────────────────────────────────────────────
 function useAppNavigation() {
@@ -101,6 +105,7 @@ export default function App() {
         <Route path="/cadastro"     element={<SignUpRoute />} />
         <Route path="/login"        element={<LoginRoute />} />
         <Route path="/configuracao" element={<SetupRoute />} />
+        <Route path="/dashboard"    element={<DashboardPage />} />
         <Route path="*"             element={<LandingPage />} />
       </Routes>
     </HashRouter>
