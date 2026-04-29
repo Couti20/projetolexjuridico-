@@ -28,11 +28,10 @@ import { SetupPage } from './pages/SetupPage';
 function useAppNavigation() {
   const navigate = useNavigate();
   return {
-    goHome:      () => { navigate('/');             window.scrollTo({ top: 0 }); },
-    goSignUp:    () => { navigate('/cadastro');     window.scrollTo({ top: 0 }); },
-    goLogin:     () => { navigate('/login');        window.scrollTo({ top: 0 }); },
-    goSetup:     () => { navigate('/configuracao'); window.scrollTo({ top: 0 }); },
-    goDashboard: () => { navigate('/dashboard');    window.scrollTo({ top: 0 }); },
+    goHome:   () => { navigate('/');             window.scrollTo({ top: 0 }); },
+    goSignUp: () => { navigate('/cadastro');     window.scrollTo({ top: 0 }); },
+    goLogin:  () => { navigate('/login');        window.scrollTo({ top: 0 }); },
+    goSetup:  () => { navigate('/configuracao'); window.scrollTo({ top: 0 }); },
   };
 }
 
@@ -88,8 +87,8 @@ function LoginRoute() {
 
 // ── Configuração inicial ──────────────────────────────────────────────────────
 function SetupRoute() {
-  const { goDashboard, goHome } = useAppNavigation();
-  return <SetupPage onSkip={goHome} onNavigateDashboard={goDashboard} />;
+  const { goHome } = useAppNavigation();
+  return <SetupPage onSkip={goHome} onNavigateDashboard={goHome} />;
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────

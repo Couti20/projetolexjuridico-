@@ -8,6 +8,7 @@
  * Lógica totalmente isolada no hook useLoginForm.
  */
 
+import { useEffect } from 'react';
 import { Scale, ShieldCheck, Clock, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLoginForm } from '../hooks/useLoginForm';
@@ -32,10 +33,17 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
   const isLoading = status === 'loading';
   const isSuccess = status === 'success';
 
-  // Redireciona para o setup após login bem-sucedido
-  if (isSuccess) {
-    setTimeout(onNavigateSetup, 1600);
-  }
+  useEffect(() => {
+    if (!isSuccess) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      onNavigateSetup();
+    }, 1600);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isSuccess, onNavigateSetup]);
 
   return (
     <div className="min-h-screen flex">
@@ -196,10 +204,11 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
                     <div className="flex justify-end">
                       <button
                         type="button"
-                        onClick={onNavigateSetup}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                        disabled
+                        aria-disabled="true"
+                        className="text-xs text-slate-400 font-medium cursor-not-allowed"
                       >
-                        Esqueceu a senha?
+                        Recuperação em breve
                       </button>
                     </div>
                   </div>

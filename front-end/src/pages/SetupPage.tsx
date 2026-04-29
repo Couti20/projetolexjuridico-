@@ -9,6 +9,7 @@
  * Lógica isolada no hook useSetupForm.
  */
 
+import { useEffect } from 'react';
 import { Scale, CheckCircle2, Loader2, AlertCircle, Monitor, Brain, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSetupForm } from '../hooks/useSetupForm';
@@ -41,10 +42,17 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
   const isOabValid      = status === 'oab-valid';
   const isSuccess       = status === 'success';
 
-  // Redireciona para o dashboard após sucesso
-  if (isSuccess) {
-    setTimeout(onNavigateDashboard, 1600);
-  }
+  useEffect(() => {
+    if (!isSuccess) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      onNavigateDashboard();
+    }, 1600);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isSuccess, onNavigateDashboard]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
@@ -208,7 +216,7 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                     </p>
                     <InputField
                       id="whatsapp"
-                      label=""
+                      label="WhatsApp"
                       type="tel"
                       placeholder="(11) 99999-9999"
                       value={form.whatsapp}
@@ -223,7 +231,9 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                   <ul className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-4 space-y-2.5">
                     {BENEFITS.map(({ icon: Icon, text }) => (
                       <li key={text} className="flex items-center gap-2.5 text-sm text-slate-600">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        <span className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                          <Icon size={11} className="text-white" />
+                        </span>
                         {text}
                       </li>
                     ))}
