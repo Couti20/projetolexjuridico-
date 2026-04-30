@@ -1,11 +1,20 @@
 /**
  * App.tsx — Roteamento com React Router v6 + HashRouter.
  *
- * Rotas:
+ * Rotas públicas:
  *   /              → Landing page
  *   /cadastro      → Tela de cadastro
  *   /login         → Tela de login
- *   /configuracao  → Onboarding pós-login (OAB + WhatsApp)
+ *
+ * Rotas internas (pós-login):
+ *   /configuracao  → Onboarding (OAB + WhatsApp)
+ *   /dashboard     → Painel principal
+ *   /processos     → Lista e detalhe de processos
+ *   /configuracoes/assistente → OAB, WhatsApp e notificações
+ *   /configuracoes/perfil → Preferências de conta
+ *   /configuracoes/plano-faturamento → Assinatura e cobranças
+ *   /configuracoes/seguranca → Senha, sessões e proteção
+ *   /configuracoes/ajuda → Central de ajuda
  */
 
 import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
@@ -23,15 +32,23 @@ import { Footer } from './components/Footer';
 import { SignUpPage } from './pages/SignUpPage';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage } from './pages/SetupPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { ProcessesPage } from './pages/ProcessesPage';
+import { AssistantSettingsPage } from './pages/AssistantSettingsPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { BillingPage } from './pages/BillingPage';
+import { SecurityPage } from './pages/SecurityPage';
+import { HelpCenterPage } from './pages/HelpCenterPage';
 
 // ── Helpers de navegação ──────────────────────────────────────────────────────
 function useAppNavigation() {
   const navigate = useNavigate();
   return {
-    goHome:   () => { navigate('/');             window.scrollTo({ top: 0 }); },
-    goSignUp: () => { navigate('/cadastro');     window.scrollTo({ top: 0 }); },
-    goLogin:  () => { navigate('/login');        window.scrollTo({ top: 0 }); },
-    goSetup:  () => { navigate('/configuracao'); window.scrollTo({ top: 0 }); },
+    goHome:      () => { navigate('/');             window.scrollTo({ top: 0 }); },
+    goSignUp:    () => { navigate('/cadastro');     window.scrollTo({ top: 0 }); },
+    goLogin:     () => { navigate('/login');        window.scrollTo({ top: 0 }); },
+    goSetup:     () => { navigate('/configuracao'); window.scrollTo({ top: 0 }); },
+    goDashboard: () => { navigate('/dashboard');    window.scrollTo({ top: 0 }); },
   };
 }
 
@@ -87,8 +104,8 @@ function LoginRoute() {
 
 // ── Configuração inicial ──────────────────────────────────────────────────────
 function SetupRoute() {
-  const { goHome } = useAppNavigation();
-  return <SetupPage onSkip={goHome} onNavigateDashboard={goHome} />;
+  const { goDashboard } = useAppNavigation();
+  return <SetupPage onSkip={goDashboard} onNavigateDashboard={goDashboard} />;
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────
@@ -100,6 +117,14 @@ export default function App() {
         <Route path="/cadastro"     element={<SignUpRoute />} />
         <Route path="/login"        element={<LoginRoute />} />
         <Route path="/configuracao" element={<SetupRoute />} />
+        <Route path="/dashboard"    element={<DashboardPage />} />
+        <Route path="/processos" element={<ProcessesPage />} />
+        <Route path="/processos/:processId" element={<ProcessesPage />} />
+        <Route path="/configuracoes/assistente" element={<AssistantSettingsPage />} />
+        <Route path="/configuracoes/perfil" element={<ProfilePage />} />
+        <Route path="/configuracoes/plano-faturamento" element={<BillingPage />} />
+        <Route path="/configuracoes/seguranca" element={<SecurityPage />} />
+        <Route path="/configuracoes/ajuda" element={<HelpCenterPage />} />
         <Route path="*"             element={<LandingPage />} />
       </Routes>
     </HashRouter>

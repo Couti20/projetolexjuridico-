@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -7,24 +7,23 @@
   --color-blue-600: #2563eb;
   
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Playfair Display', Georgia, serif;
 }
 
 body {
   background-color: var(--color-slate-50);
   color: var(--color-slate-800);
   font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02' 1, 'cv03' 1, 'cv04' 1, 'cv11' 1;
+  font-variant-numeric: lining-nums tabular-nums;
   overflow-x: hidden;
   background-image: 
     radial-gradient(circle at 80% 20%, #DBEAFE 0%, transparent 40%), 
     radial-gradient(circle at 10% 80%, #EFF6FF 0%, transparent 40%);
   background-size: cover;
   background-attachment: fixed;
-}
-
-/* Fonte display nos headings principais */
-h1, h2 {
-  font-family: var(--font-display);
 }
 
 /* Glassmorphism Classes */

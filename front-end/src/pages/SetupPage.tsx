@@ -95,7 +95,7 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">Tudo configurado!</h2>
                   <p className="text-slate-500 text-sm max-w-xs">
-                    Seu assistente já está monitorando seus processos. Redirecionando...
+                    Seu assistente já está monitorando seus processos. Redirecionando para o dashboard...
                   </p>
                 </div>
                 <div className="h-1 w-48 bg-slate-100 rounded-full overflow-hidden">
