@@ -5,10 +5,14 @@
  *   - Sidebar fixa (desktop) / drawer (mobile)
  *   - Header com busca, status API e perfil
  *   - Slot <children> para o conteúdo da página
+ *
+ * Correções aplicadas:
+ *   - SidebarContent extraído para fora do AppLayout (evita remount a cada render)
+ *   - Removidos defaults hardcoded de userName/userOab (fonte única: AuthContext)
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, type Location } from 'react-router-dom';
 import {
   Scale,
   LayoutDashboard,
@@ -46,31 +50,111 @@ const NAV_ITEMS = [
   { icon: Settings,        label: 'Configurações',   path: '/configuracoes/assistente' },
 ] satisfies NavItem[];
 
+// ── SidebarContent — extraído para fora do AppLayout ─────────
+// IMPORTANTE: nunca definir componentes dentro de outros componentes.
+// Isso causava remount completo da sidebar a cada render do AppLayout.
+interface SidebarContentProps {
+  location: Location;
+  onNavigate: (path: string) => void;
+  onLogout: () => void;
+}
+
+function SidebarContent({ location, onNavigate, onLogout }: SidebarContentProps) {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-slate-800">
+        <div className="bg-blue-600 text-white p-2 rounded-xl shrink-0">
+          <Scale size={20} />
+        </div>
+        <span className="text-lg font-bold text-white tracking-tight">Lex</span>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {NAV_ITEMS.map(({ icon: Icon, label, path, badge }) => {
+          const active = Boolean(
+            path &&
+            (
+              location.pathname === path ||
+              location.pathname.startsWith(`${path}/`) ||
+              (path.startsWith('/configuracoes') && location.pathname.startsWith('/configuracoes'))
+            ),
+          );
+          const isDisabled = !path;
+          return (
+            <button
+              key={path ?? label}
+              type="button"
+              onClick={() => {
+                if (!path) return;
+                onNavigate(path);
+              }}
+              disabled={isDisabled}
+              className={[
+                'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left',
+                isDisabled ? 'opacity-60 cursor-not-allowed' : '',
+                active
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800',
+              ].join(' ')}
+            >
+              <Icon size={18} className="shrink-0" />
+              <span className="flex-1">{label}</span>
+              {badge !== undefined && !isDisabled && (
+                <span className={[
+                  'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                  active ? 'bg-white/20 text-white' : 'bg-red-500 text-white',
+                ].join(' ')}>
+                  {badge}
+                </span>
+              )}
+              {isDisabled && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Em breve</span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="px-3 py-4 border-t border-slate-800">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-slate-800 transition-all"
+        >
+          <LogOut size={16} />
+          Sair
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── AppLayout ─────────────────────────────────────────────────
 interface AppLayoutProps {
   children: ReactNode;
-  /** Nome do usuário exibido no header */
-  userName?: string;
-  /** OAB exibida no header */
-  userOab?: string;
   /** Status da conexão com a API do Escavador */
   apiStatus?: 'connected' | 'disconnected' | 'checking';
 }
 
 export function AppLayout({
   children,
-  userName = 'Dr. João Silva',
-  userOab = 'OAB/SP 123.456',
   apiStatus = 'connected',
 }: AppLayoutProps) {
   const navigate  = useNavigate();
   const location  = useLocation();
+  // Fonte única de verdade: AuthContext — sem defaults hardcoded.
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const resolvedUserName = user?.fullName?.trim() || userName;
-  const resolvedUserOab = user?.oab?.trim() || userOab;
+  // Lê sempre do contexto; fallback vazio apenas para evitar render quebrado
+  // antes do contexto estar disponível (situação que não deve ocorrer em produção).
+  const displayName = user?.fullName?.trim() || '';
+  const displayOab  = user?.oab?.trim()      || '';
 
   useEffect(() => {
     if (!profileOpen) return undefined;
@@ -96,10 +180,10 @@ export function AppLayout({
     };
   }, [profileOpen]);
 
-  const initials = resolvedUserName
+  const initials = displayName
     .split(' ')
     .slice(0, 2)
-    .map((n) => n[0])
+    .map((n) => n[0] ?? '')
     .join('')
     .toUpperCase();
 
@@ -117,102 +201,37 @@ export function AppLayout({
     window.scrollTo({ top: 0 });
   }
 
-  const apiLabel: Record<typeof apiStatus, string> = {
+  function handleSidebarNavigate(path: string) {
+    navigate(path);
+    setSidebarOpen(false);
+  }
+
+  const apiLabel: Record<NonNullable<typeof apiStatus>, string> = {
     connected:    'API Conectada',
     disconnected: 'API Desconectada',
     checking:     'Verificando...',
   };
-  const apiColor: Record<typeof apiStatus, string> = {
+  const apiColor: Record<NonNullable<typeof apiStatus>, string> = {
     connected:    'bg-emerald-100 text-emerald-700 border-emerald-200',
     disconnected: 'bg-red-100 text-red-700 border-red-200',
     checking:     'bg-amber-100 text-amber-700 border-amber-200',
   };
-  const apiDot: Record<typeof apiStatus, string> = {
+  const apiDot: Record<NonNullable<typeof apiStatus>, string> = {
     connected:    'bg-emerald-500',
     disconnected: 'bg-red-500',
     checking:     'bg-amber-400 animate-pulse',
   };
-
-  function SidebarContent() {
-    return (
-      <div className="flex flex-col h-full">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-slate-800">
-          <div className="bg-blue-600 text-white p-2 rounded-xl shrink-0">
-            <Scale size={20} />
-          </div>
-          <span className="text-lg font-bold text-white tracking-tight">Lex</span>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map(({ icon: Icon, label, path, badge }) => {
-            const active = Boolean(
-              path &&
-              (
-                location.pathname === path ||
-                location.pathname.startsWith(`${path}/`) ||
-                (path.startsWith('/configuracoes') && location.pathname.startsWith('/configuracoes'))
-              ),
-            );
-            const isDisabled = !path;
-            return (
-              <button
-                key={path ?? label}
-                type="button"
-                onClick={() => {
-                  if (!path) return;
-                  navigate(path);
-                  setSidebarOpen(false);
-                }}
-                disabled={isDisabled}
-                className={[
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left',
-                  isDisabled ? 'opacity-60 cursor-not-allowed' : '',
-                  active
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800',
-                ].join(' ')}
-              >
-                <Icon size={18} className="shrink-0" />
-                <span className="flex-1">{label}</span>
-                {badge !== undefined && !isDisabled && (
-                  <span className={[
-                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                    active ? 'bg-white/20 text-white' : 'bg-red-500 text-white',
-                  ].join(' ')}>
-                    {badge}
-                  </span>
-                )}
-                {isDisabled && (
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Em breve</span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Footer */}
-        <div className="px-3 py-4 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-slate-800 transition-all"
-          >
-            <LogOut size={16} />
-            Sair
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
 
       {/* ── Sidebar desktop ──────────────────────────────────── */}
       <aside className="hidden lg:flex w-56 xl:w-60 shrink-0 flex-col bg-slate-900">
-        <SidebarContent />
+        <SidebarContent
+          location={location}
+          onNavigate={handleSidebarNavigate}
+          onLogout={handleLogout}
+        />
       </aside>
 
       {/* ── Sidebar mobile (drawer) ──────────────────────────── */}
@@ -233,7 +252,11 @@ export function AppLayout({
                 <X size={22} />
               </button>
             </div>
-            <SidebarContent />
+            <SidebarContent
+              location={location}
+              onNavigate={handleSidebarNavigate}
+              onLogout={handleLogout}
+            />
           </aside>
         </>
       )}
@@ -299,8 +322,8 @@ export function AppLayout({
                 {initials}
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-slate-800 leading-tight">{resolvedUserName}</p>
-                <p className="text-[10px] text-slate-400 leading-tight">{resolvedUserOab}</p>
+                <p className="text-xs font-semibold text-slate-800 leading-tight">{displayName}</p>
+                <p className="text-[10px] text-slate-400 leading-tight">{displayOab}</p>
               </div>
               <ChevronDown size={14} className={`text-slate-400 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -312,8 +335,8 @@ export function AppLayout({
                 className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50"
               >
                 <div className="px-4 pb-2 mb-1 border-b border-slate-100">
-                  <p className="text-sm font-semibold text-slate-900">{resolvedUserName}</p>
-                  <p className="text-xs text-slate-500">{resolvedUserOab}</p>
+                  <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+                  <p className="text-xs text-slate-500">{displayOab}</p>
                 </div>
                 <button
                   type="button"
