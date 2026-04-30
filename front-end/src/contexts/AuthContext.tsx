@@ -3,6 +3,13 @@ import type { AuthSession, AuthUser } from '../types/auth';
 
 const AUTH_STORAGE_KEY = 'lex-auth-session';
 
+/**
+ * Tempo máximo de validade de uma sessão armazenada localmente.
+ * Após esse período o usuário é deslogado automaticamente na próxima visita.
+ * Valor: 8 horas (ajustável conforme política de segurança do produto).
+ */
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 horas em milissegundos
+
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
@@ -30,6 +37,19 @@ function readStoredSession(): AuthSession | null {
       return null;
     }
 
+    // ── Verificação de expiração da sessão ───────────────────────────
+    const authenticatedAt = typeof candidate.authenticatedAt === 'number'
+      ? candidate.authenticatedAt
+      : 0;
+
+    const sessionAge = Date.now() - authenticatedAt;
+    if (sessionAge > SESSION_TTL_MS) {
+      // Sessão expirada: limpa o storage e força novo login.
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+    // ───────────────────────────────────────────────────────
+
     return {
       user: {
         id: user.id,
@@ -37,7 +57,7 @@ function readStoredSession(): AuthSession | null {
         email: user.email,
         oab: typeof user.oab === 'string' ? user.oab : undefined,
       },
-      authenticatedAt: typeof candidate.authenticatedAt === 'number' ? candidate.authenticatedAt : Date.now(),
+      authenticatedAt,
     };
   } catch (error) {
     console.error('Nao foi possivel restaurar a sessao local.', error);
