@@ -1,5 +1,5 @@
 /**
- * App.tsx — Roteamento com React Router v6 + HashRouter.
+ * App.tsx — Roteamento com React Router v6 + BrowserRouter.
  *
  * Rotas públicas:
  *   /              → Landing page
@@ -8,16 +8,18 @@
  *
  * Rotas internas (pós-login):
  *   /configuracao  → Onboarding (OAB + WhatsApp)
- *   /dashboard     → Painel principal
- *   /processos     → Lista e detalhe de processos
- *   /configuracoes/assistente → OAB, WhatsApp e notificações
- *   /configuracoes/perfil → Preferências de conta
- *   /configuracoes/plano-faturamento → Assinatura e cobranças
- *   /configuracoes/seguranca → Senha, sessões e proteção
- *   /configuracoes/ajuda → Central de ajuda
+ *   /dashboard     → Painel principal (protegida)
+ *   /processos     → Lista de processos (protegida)
+ *   /processos/:processId → Detalhe do processo (protegida)
+ *   /tarefas       → Planejamento diario e produtividade (protegida)
+ *   /configuracoes/assistente → OAB, WhatsApp e notificações (protegida)
+ *   /configuracoes/perfil → Preferências de conta (protegida)
+ *   /configuracoes/plano-faturamento → Assinatura e cobranças (protegida)
+ *   /configuracoes/seguranca → Senha, sessões e proteção (protegida)
+ *   /configuracoes/ajuda → Central de ajuda (protegida)
  */
 
-import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { SocialProof } from './components/SocialProof';
@@ -33,12 +35,16 @@ import { SignUpPage } from './pages/SignUpPage';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage } from './pages/SetupPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { ProcessesPage } from './pages/ProcessesPage';
+import { ProcessListPage } from './pages/ProcessListPage';
+import { ProcessDetailPage } from './pages/ProcessDetailPage';
+import { DailyTasksPage } from './pages/DailyTasksPage';
 import { AssistantSettingsPage } from './pages/AssistantSettingsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { BillingPage } from './pages/BillingPage';
 import { SecurityPage } from './pages/SecurityPage';
 import { HelpCenterPage } from './pages/HelpCenterPage';
+import { PrivateRoute } from './routes/PrivateRoute';
+import { useAuth } from './hooks/useAuth';
 
 // ── Helpers de navegação ──────────────────────────────────────────────────────
 function useAppNavigation() {
@@ -98,35 +104,53 @@ function SignUpRoute() {
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 function LoginRoute() {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { goHome, goSignUp, goSetup } = useAppNavigation();
-  return <LoginPage onNavigateHome={goHome} onNavigateSignUp={goSignUp} onNavigateSetup={goSetup} />;
+  const fromPath = (location.state as { from?: string } | null)?.from;
+
+  const goAfterLogin = () => {
+    if (fromPath && fromPath.startsWith('/') && fromPath !== '/login') {
+      navigate(fromPath);
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    goSetup();
+  };
+
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  return <LoginPage onNavigateHome={goHome} onNavigateSignUp={goSignUp} onNavigateSetup={goAfterLogin} />;
 }
 
 // ── Configuração inicial ──────────────────────────────────────────────────────
 function SetupRoute() {
+  const { isAuthenticated } = useAuth();
   const { goDashboard } = useAppNavigation();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <SetupPage onSkip={goDashboard} onNavigateDashboard={goDashboard} />;
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/"             element={<LandingPage />} />
         <Route path="/cadastro"     element={<SignUpRoute />} />
         <Route path="/login"        element={<LoginRoute />} />
         <Route path="/configuracao" element={<SetupRoute />} />
-        <Route path="/dashboard"    element={<DashboardPage />} />
-        <Route path="/processos" element={<ProcessesPage />} />
-        <Route path="/processos/:processId" element={<ProcessesPage />} />
-        <Route path="/configuracoes/assistente" element={<AssistantSettingsPage />} />
-        <Route path="/configuracoes/perfil" element={<ProfilePage />} />
-        <Route path="/configuracoes/plano-faturamento" element={<BillingPage />} />
-        <Route path="/configuracoes/seguranca" element={<SecurityPage />} />
-        <Route path="/configuracoes/ajuda" element={<HelpCenterPage />} />
+        <Route path="/dashboard"    element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+        <Route path="/processos" element={<PrivateRoute><ProcessListPage /></PrivateRoute>} />
+        <Route path="/processos/:processId" element={<PrivateRoute><ProcessDetailPage /></PrivateRoute>} />
+        <Route path="/tarefas" element={<PrivateRoute><DailyTasksPage /></PrivateRoute>} />
+        <Route path="/configuracoes/assistente" element={<PrivateRoute><AssistantSettingsPage /></PrivateRoute>} />
+        <Route path="/configuracoes/perfil" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+        <Route path="/configuracoes/plano-faturamento" element={<PrivateRoute><BillingPage /></PrivateRoute>} />
+        <Route path="/configuracoes/seguranca" element={<PrivateRoute><SecurityPage /></PrivateRoute>} />
+        <Route path="/configuracoes/ajuda" element={<PrivateRoute><HelpCenterPage /></PrivateRoute>} />
         <Route path="*"             element={<LandingPage />} />
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 }

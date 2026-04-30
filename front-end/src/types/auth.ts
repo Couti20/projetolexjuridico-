@@ -34,3 +34,16 @@ export interface LoginFormErrors {
 }
 
 export type LoginStatus = 'idle' | 'loading' | 'success' | 'error';
+
+// ── Sessão (contexto de autenticação) ─────────────────────────
+export interface AuthUser {
+  id: string;
+  fullName: string;
+  email: string;
+  oab?: string;
+}
+
+export interface AuthSession {
+  user: AuthUser;
+  authenticatedAt: number;
+}

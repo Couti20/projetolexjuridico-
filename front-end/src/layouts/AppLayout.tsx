@@ -28,6 +28,8 @@ import {
   LifeBuoy,
   type LucideIcon,
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { authService } from '../services/authService';
 
 interface NavItem {
   icon: LucideIcon;
@@ -40,7 +42,7 @@ interface NavItem {
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard',       path: '/dashboard' },
   { icon: FileText,        label: 'Processos',       path: '/processos' },
-  { icon: ListTodo,        label: 'Tarefas do dia',  badge: 3 },
+  { icon: ListTodo,        label: 'Tarefas do dia',  path: '/tarefas', badge: 3 },
   { icon: Settings,        label: 'Configurações',   path: '/configuracoes/assistente' },
 ] satisfies NavItem[];
 
@@ -62,9 +64,13 @@ export function AppLayout({
 }: AppLayoutProps) {
   const navigate  = useNavigate();
   const location  = useLocation();
+  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const resolvedUserName = user?.fullName?.trim() || userName;
+  const resolvedUserOab = user?.oab?.trim() || userOab;
 
   useEffect(() => {
     if (!profileOpen) return undefined;
@@ -90,12 +96,26 @@ export function AppLayout({
     };
   }, [profileOpen]);
 
-  const initials = userName
+  const initials = resolvedUserName
     .split(' ')
     .slice(0, 2)
     .map((n) => n[0])
     .join('')
     .toUpperCase();
+
+  async function handleLogout() {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Não foi possível notificar logout no serviço.', error);
+    }
+
+    logout();
+    setProfileOpen(false);
+    setSidebarOpen(false);
+    navigate('/login');
+    window.scrollTo({ top: 0 });
+  }
 
   const apiLabel: Record<typeof apiStatus, string> = {
     connected:    'API Conectada',
@@ -176,7 +196,7 @@ export function AppLayout({
         <div className="px-3 py-4 border-t border-slate-800">
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-slate-800 transition-all"
           >
             <LogOut size={16} />
@@ -279,8 +299,8 @@ export function AppLayout({
                 {initials}
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-slate-800 leading-tight">{userName}</p>
-                <p className="text-[10px] text-slate-400 leading-tight">{userOab}</p>
+                <p className="text-xs font-semibold text-slate-800 leading-tight">{resolvedUserName}</p>
+                <p className="text-[10px] text-slate-400 leading-tight">{resolvedUserOab}</p>
               </div>
               <ChevronDown size={14} className={`text-slate-400 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -292,8 +312,8 @@ export function AppLayout({
                 className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50"
               >
                 <div className="px-4 pb-2 mb-1 border-b border-slate-100">
-                  <p className="text-sm font-semibold text-slate-900">{userName}</p>
-                  <p className="text-xs text-slate-500">{userOab}</p>
+                  <p className="text-sm font-semibold text-slate-900">{resolvedUserName}</p>
+                  <p className="text-xs text-slate-500">{resolvedUserOab}</p>
                 </div>
                 <button
                   type="button"
@@ -344,7 +364,7 @@ export function AppLayout({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={() => { navigate('/'); setProfileOpen(false); }}
+                  onClick={handleLogout}
                   className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2.5"
                 >
                   <LogOut size={15} />

@@ -7,7 +7,9 @@
  */
 
 import { useState, useCallback, type FormEvent } from 'react';
-import type { LoginFormData, LoginFormErrors, LoginStatus } from '../types/auth';
+import type { AuthUser, LoginFormData, LoginFormErrors, LoginStatus } from '../types/auth';
+import { authService } from '../services/authService';
+import { ApiError } from '../services/api';
 
 const INITIAL_FORM: LoginFormData = {
   email: '',
@@ -34,6 +36,7 @@ export function useLoginForm() {
   const [errors, setErrors] = useState<LoginFormErrors>({});
   const [status, setStatus] = useState<LoginStatus>('idle');
   const [serverError, setServerError] = useState<string | null>(null);
+  const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
 
   const updateField = useCallback(
     <K extends keyof LoginFormData>(field: K, value: LoginFormData[K]) => {
@@ -43,14 +46,16 @@ export function useLoginForm() {
       }
       // Limpa erro de servidor ao editar qualquer campo
       if (serverError) setServerError(null);
+      if (authenticatedUser) setAuthenticatedUser(null);
     },
-    [errors, serverError],
+    [authenticatedUser, errors, serverError],
   );
 
   const handleSubmit = useCallback(
     async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       setServerError(null);
+      setAuthenticatedUser(null);
 
       const validationErrors = validateForm(form);
       if (Object.keys(validationErrors).length > 0) {
@@ -61,24 +66,25 @@ export function useLoginForm() {
       setStatus('loading');
 
       try {
-        /**
-         * TODO: substituir pelo serviço real quando o back-end estiver pronto.
-         * Exemplo: await authService.login({ email: form.email, password: form.password })
-         */
-        await new Promise((resolve) => setTimeout(resolve, 1200)); // Simulação
+        const response = await authService.login({
+          email: form.email,
+          password: form.password,
+        });
 
-        // Simulação: credenciais erradas para demo
-        const isValid = form.email.includes('@') && form.password.length >= 6;
-        if (!isValid) throw new Error('invalid_credentials');
-
+        setAuthenticatedUser(response.user);
         setStatus('success');
-      } catch {
+      } catch (error) {
         setStatus('error');
-        setServerError('E-mail ou senha incorretos. Verifique suas credenciais.');
+        if (error instanceof ApiError && error.code === 'invalid_credentials') {
+          setServerError('E-mail ou senha incorretos. Verifique suas credenciais.');
+          return;
+        }
+
+        setServerError('Não foi possível autenticar agora. Tente novamente em instantes.');
       }
     },
     [form],
   );
 
-  return { form, errors, status, serverError, updateField, handleSubmit };
+  return { form, errors, status, serverError, authenticatedUser, updateField, handleSubmit };
 }

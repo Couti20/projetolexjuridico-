@@ -8,10 +8,11 @@
  * Lógica totalmente isolada no hook useLoginForm.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Scale, ShieldCheck, Clock, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLoginForm } from '../hooks/useLoginForm';
+import { useAuth } from '../hooks/useAuth';
 import { InputField } from '../ui/InputField';
 import { PasswordInput } from '../ui/PasswordInput';
 
@@ -28,22 +29,41 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }: LoginPageProps) {
-  const { form, errors, status, serverError, updateField, handleSubmit } = useLoginForm();
+  const { login } = useAuth();
+  const { form, errors, status, serverError, authenticatedUser, updateField, handleSubmit } = useLoginForm();
+  const hasCommittedSuccess = useRef(false);
+  const navigateSetupRef = useRef(onNavigateSetup);
 
   const isLoading = status === 'loading';
   const isSuccess = status === 'success';
 
   useEffect(() => {
-    if (!isSuccess) return undefined;
+    navigateSetupRef.current = onNavigateSetup;
+  }, [onNavigateSetup]);
 
+  useEffect(() => {
+    if (!isSuccess) {
+      hasCommittedSuccess.current = false;
+      return undefined;
+    }
+
+    if (hasCommittedSuccess.current) return undefined;
+    hasCommittedSuccess.current = true;
+
+    if (!authenticatedUser) {
+      hasCommittedSuccess.current = false;
+      return undefined;
+    }
+
+    login(authenticatedUser);
     const timeoutId = window.setTimeout(() => {
-      onNavigateSetup();
+      navigateSetupRef.current();
     }, 1600);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isSuccess, onNavigateSetup]);
+  }, [authenticatedUser, isSuccess, login]);
 
   return (
     <div className="min-h-screen flex">
