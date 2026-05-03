@@ -1,7 +1,9 @@
+
 import { createContext, useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { AuthSession, AuthUser } from '../types/auth';
 
 const AUTH_STORAGE_KEY = 'lex-auth-session';
+const DEV_MOCK_DISABLED_KEY = 'lex-dev-mock-disabled';
 
 /**
  * Tempo máximo de validade de uma sessão armazenada localmente.
@@ -9,6 +11,41 @@ const AUTH_STORAGE_KEY = 'lex-auth-session';
  * Valor: 8 horas (ajustável conforme política de segurança do produto).
  */
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 horas em milissegundos
+const ENABLE_DEV_MOCK_USER = import.meta.env.DEV;
+
+const DEV_MOCK_USER: AuthUser = {
+  id: 'user-lex-admin',
+  fullName: 'Admin Lex',
+  email: 'admin@lexjuridico.local',
+  oab: 'OAB/SP 123.456',
+};
+
+function createDevMockSession(): AuthSession {
+  return {
+    user: DEV_MOCK_USER,
+    authenticatedAt: Date.now(),
+  };
+}
+
+function isDevMockDisabled() {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(DEV_MOCK_DISABLED_KEY) === 'true';
+}
+
+function setDevMockDisabled(disabled: boolean) {
+  if (typeof window === 'undefined') return;
+
+  if (disabled) {
+    window.localStorage.setItem(DEV_MOCK_DISABLED_KEY, 'true');
+    return;
+  }
+
+  window.localStorage.removeItem(DEV_MOCK_DISABLED_KEY);
+}
+
+function shouldUseDevMockUser() {
+  return ENABLE_DEV_MOCK_USER && !isDevMockDisabled();
+}
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -24,7 +61,9 @@ function readStoredSession(): AuthSession | null {
 
   try {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) return null;
+    if (!raw) {
+      return shouldUseDevMockUser() ? createDevMockSession() : null;
+    }
 
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
@@ -37,18 +76,15 @@ function readStoredSession(): AuthSession | null {
       return null;
     }
 
-    // ── Verificação de expiração da sessão ───────────────────────────
     const authenticatedAt = typeof candidate.authenticatedAt === 'number'
       ? candidate.authenticatedAt
       : 0;
 
     const sessionAge = Date.now() - authenticatedAt;
     if (sessionAge > SESSION_TTL_MS) {
-      // Sessão expirada: limpa o storage e força novo login.
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
       return null;
     }
-    // ───────────────────────────────────────────────────────
 
     return {
       user: {
@@ -61,7 +97,7 @@ function readStoredSession(): AuthSession | null {
     };
   } catch (error) {
     console.error('Nao foi possivel restaurar a sessao local.', error);
-    return null;
+    return shouldUseDevMockUser() ? createDevMockSession() : null;
   }
 }
 
@@ -70,9 +106,13 @@ function storeSession(session: AuthSession | null) {
 
   if (!session) {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    if (ENABLE_DEV_MOCK_USER) {
+      setDevMockDisabled(true);
+    }
     return;
   }
 
+  setDevMockDisabled(false);
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 }
 

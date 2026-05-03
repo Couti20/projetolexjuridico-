@@ -1,6 +1,6 @@
 # Services
 
-Pasta reservada para serviços assíncronos do Alex.
+Pasta reservada para serviços assíncronos do Lex.
 
 Sugestão inicial:
 - `webhook-processor/`

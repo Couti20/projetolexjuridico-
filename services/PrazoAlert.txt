@@ -1,0 +1,202 @@
+PrazoAlert: Documento de Definição de
+Produto (PDD)
+Autor: Manus AI
+Data: 08 de Abril de 2026
+1. Visão Geral
+O PrazoAlert é um assistente jurídico digital inovador, projetado para transformar
+movimentações processuais complexas em tarefas claras e acionáveis. Sua principal
+função é notificar advogados autônomos via WhatsApp sobre prazos iminentes, antes
+que estes expirem. O sistema evoluiu de um simples notificador para uma ferramenta
+inteligente, incorporando uma “Camada de Inteligência” que aumenta
+significativamente sua percepção de valor e potencial de precificação.
+One-liner: Um assistente jurídico digital que transforma movimentações confusas em
+tarefas claras e avisa o advogado via WhatsApp antes do prazo acabar.
+Pitch: Para advogados autônomos que vivem sob o terror de prazos fatais e
+desorganização, o PrazoAlert é um Micro-SaaS focado no WhatsApp. Mais do que um
+“monitor de processos”, ele possui uma camada de inteligência que interpreta as
+publicações, calcula a data do prazo e gera uma lista de tarefas. Entregamos o controle
+total da rotina jurídica com a facilidade de um clique.
+2. Proposta de Valor
+A proposta de valor do PrazoAlert reside na transição da entrega de dados brutos para
+a entrega de decisões. Em vez de apenas informar sobre uma movimentação, o
+sistema interpreta o contexto e informa ao advogado “o que fazer” e “para quando”.
+Valor Real: Saímos da entrega de dados (“houve movimentação”) para a entrega de
+decisão (“você tem 15 dias para responder a esta intimação”).
+Por que importa: O advogado não quer ler juridiquês no celular; ele quer saber “o que
+fazer” e “para quando”.
+Resultado: Redução do estresse, fim da perda de prazos e organização automática do
+fluxo de trabalho (Work Management).
+3. ICP (Ideal Customer Profile)
+O PrazoAlert é direcionado a um perfil específico de profissional jurídico, cujas
+necessidades e desafios são diretamente endereçados pela solução.
+Perfil: Advogados autônomos (solo) ou sócios de pequenos escritórios.
+Segmentação: Áreas Cível e Trabalhista (foco inicial: SP - TJSP/TRT2).
+Situação Atual: Gerencia entre 20 a 100 processos ativos, sente-se soterrado por
+informações desestruturadas e usa o cérebro ou planilhas falhas como agenda.
+4. Problema (Deep Dive)
+O problema central que o PrazoAlert busca resolver é a sobrecarga cognitiva e o risco
+de perda de prazos enfrentados por advogados.
+A Dor: O “terror do prazo fatal” somado à sobrecarga cognitiva de tentar decifrar
+publicações longas e confusas nos Diários Oficiais.
+Impacto: Perda financeira (honorários perdidos, multas) e desorganização crônica
+que impede o advogado de pegar novos clientes.
+Soluções atuais: Softwares tradicionais funcionam como “caixas de entrada”
+passivas. Eles apenas repassam o texto do tribunal e deixam o trabalho de
+interpretação e agendamento para o humano.
+5. Solução (A Camada de Inteligência)
+O PrazoAlert atua como um cérebro analítico, interpretando informações e fornecendo
+orientações claras, baseado em quatro pilares práticos:
+Cálculo Automático de Prazos: Identifica gatilhos no texto (ex: “intimação”) e
+calcula a data final automaticamente.
+Gerenciador de Tarefas Embutido: Cada alerta vira um item acionável com
+status (Pendente, Em Andamento, Concluído).
+Dashboard Semafórico: Visualização focada em urgência (🔴 Vence Hoje | 🟡
+Vence na Semana | 🟢 Sem Urgência).
+Resumo Inteligente: Substitui o bloco de texto do tribunal por uma frase clara e
+objetiva do que aconteceu no caso.
+6. MVP (Produto Inicial)
+O Produto Mínimo Viável (MVP) do PrazoAlert foca nas funcionalidades essenciais para
+entregar valor rapidamente.
+Essencial:
+Cadastro via OAB/UF com seleção manual dos processos (Número CNJ) que
+serão monitorados.
+Integração com Escavador (Webhooks) para capturar movimentações.
+Filtro baseado em regras (Python if/else) para encontrar palavras-chave de prazo
+(ex: “manifestação em 15 dias”) e calcular a data.
+Alertas via WhatsApp com botões interativos ([Já Peticionei], [Lembrar Amanhã]).
+Dashboard Web minimalista apenas com o semáforo de urgências e lista de
+tarefas.
+NÃO entra no MVP:
+App móvel nativo.
+Monitoramento nacional (restrito a SP).
+BI e gráficos complexos de desempenho financeiro.
+7. Diferenciais Competitivos
+O PrazoAlert se destaca no mercado por sua abordagem proativa e focada na gestão
+do tempo do advogado.
+De Monitor para Assistente: Enquanto os concorrentes vendem “acesso a
+publicações”, o PrazoAlert vende “gestão de tempo e alívio mental”.
+Fricção Zero: A gestão do dia a dia acontece inteira no WhatsApp.
+Histórico Limpo: Resumos gerados pelo sistema limpam o “juridiquês”,
+facilitando o entendimento imediato do status do processo.
+8. Modelo de Negócio
+Com a adição da camada de inteligência, o valor percebido do PrazoAlert permite um
+modelo de negócio com precificação premium.
+Modelo: SaaS por assinatura recorrente.
+Lógica de Planos:
+Free Trial: 7 a 14 dias grátis para gerar o momento “Uau!” (receber o primeiro
+alerta resumido).
+Plano Inteligência Solo: R 149,00/mês (Dashboard semafórico + Prazos
+automáticos + Alertas WhatsApp para 1 usuário).
+Plano Inteligência Office: R$ 299,00+/mês (Multi-usuários, delegação de tarefas
+entre sócios).
+9. Unit Economics (Estimativa)
+As estimativas financeiras indicam um modelo de negócio robusto e lucrativo.
+LTV Estimado: R$ 1.200,00+ (Devido à alta retenção do sistema de tarefas
+integradas e ticket maior).
+Custo por Usuário (APIs + Infra + LLM p/ resumos): ~R 25,00/mês.
+Margem Bruta Potencial: > 80%.
+10. Stack Tecnológica
+A arquitetura tecnológica do PrazoAlert é moderna e escalável, utilizando ferramentas
+e plataformas eficientes.
+99, 00aR
+15, 00aR
+Front-end: React.js / Next.js (Dashboard focado na simplicidade visual das
+tarefas).
+Back-end: Python (FastAPI) - Alta velocidade para gerenciar webhooks e lógica
+de cálculo de prazos.
+Banco de Dados: PostgreSQL (Tabelas de processos, movimentações e tarefas
+vinculadas).
+Camada de IA/Resumos: Integração pontual com LLMs (OpenAI/Claude) focada
+apenas em converter o “texto do tribunal” para o “resumo do advogado”.
+APIs Críticas: Escavador (Webhooks judiciais), Evolution API (WhatsApp),
+Asaas/Stripe (Pagamentos).
+11. Riscos e Desafios
+Identificação e mitigação de riscos são cruciais para o sucesso do projeto.
+Técnicos: Falsos positivos no cálculo de prazos por regras simples (Mitigação:
+Sempre exibir o texto original em um botão [Ver Detalhes] caso a inteligência
+erre).
+Dependência: O WhatsApp banir o número do sistema (Mitigação: Fluxo de
+mensagens altamente opt-in e sem spam).
+12. Go-To-Market
+A estratégia inicial de entrada no mercado foca na abordagem direta e na
+demonstração de valor.
+Estratégia Inicial: Abordagem direta (Cold Outreach) no LinkedIn e Instagram de
+advogados autônomos.
+O Pitch de Venda: “Você ainda gasta 1 hora por dia lendo Diário Oficial para não
+perder prazo? Teste meu assistente no WhatsApp de graça.”
+13. Roadmap Simples
+O roadmap de desenvolvimento é dividido em fases, priorizando a entrega de valor
+incremental.
+Fase 1 (MVP “Hardcoded”): Monitoramento via Escavador, extração de prazos
+via regras Python (Regex) e alertas simples no WhatsApp.
+Fase 2 (A Inteligência Real): Inserção da API da OpenAI para gerar os “Históricos
+Inteligentes” e classificar movimentações complexas com 99% de precisão.
+Fase 3 (Escala): Expansão nacional (outros TJs) e inclusão de métricas de
+produtividade do escritório.
+14. Pontos a Validar
+Alguns pontos críticos necessitam de validação para refinar o produto e a estratégia de
+mercado.
+[Ponto Técnico]: Qual a precisão das regras manuais (Python) para cálculo de
+prazo antes de precisar obrigatoriamente acionar a IA?
+[Ponto de Conversão]: O advogado aceita pagar R$ 99+/mês logo no início ou
+precisará de um plano mais barato e com menos inteligência como ponte?
+[Ponto de UX]: Como lidar no WhatsApp quando o advogado tiver mais de 5
+tarefas vencendo no mesmo dia sem poluir o chat?
+15. Observações e Ideias Futuras: Copiloto Jurídico
+(Em Desenvolvimento)
+Esta seção apresenta uma ideia complementar, ou um módulo/produto isolado, que
+aborda a dor da Sobrecarga de Execução descrita pelos advogados. Embora possa
+ser um produto independente, sua sinergia com o PrazoAlert é notável, focando em
+como desarmar a “bomba” dos prazos, e não apenas em alertar sobre ela. É crucial
+notar que esta ideia está em fase de processamento e requer validação e formalização
+adicionais.
+💡 O Conceito: Assistente de Execução Jurídica
+Enquanto um sistema de alertas avisa que a bomba vai explodir, esse sistema diz
+como desarmar a bomba e já te entrega o alicate. É uma ferramenta de foco e
+aceleração de escrita.
+⚙️ Como funcionaria na prática (As 3 Grandes Funcionalidades)
+1. O “Daily Briefing” (Agenda Estratégica do Dia)
+O advogado não quer abrir uma agenda em branco e pensar no que fazer. O sistema
+faz isso por ele.
+Ação: Ele abre o painel (ou recebe de manhã no WhatsApp) uma lista exata:
+“Doutor, o seu foco de hoje é:
+1. Fazer a Contestação do cliente João (Vence amanhã).
+2. Ligar para o cliente Maria (Audiência em 2 dias).
+3. Protocolar a petição inicial da empresa X.”
+O Valor: Elimina a “paralisia por análise”. Ele senta na cadeira e já sabe qual é a
+primeira missão do dia.
+2. O Copiloto de Redação (Apoio em Petições e Artigos)
+Essa é a parte onde sua experiência com IA e Python brilharia muito. O advogado sabe
+o que quer pedir, mas perde horas caçando o artigo certo na lei ou a jurisprudência.
+Ação: O advogado digita um rascunho ou a ideia central (ex: “Preciso fazer um pedido
+de danos morais porque o voo atrasou 12 horas e ele perdeu o casamento”).
+A Mágica: O sistema gera a estrutura da petição e sugere:
+“Sugestão de embasamento: Utilize o Artigo 14 do Código de Defesa do Consumidor
+(Responsabilidade Objetiva) e cite esta jurisprudência recente do TJSP sobre perda
+de voo para eventos importantes.”
+O Valor: Transforma 3 horas de pesquisa e digitação em 30 minutos de revisão.
+3. Quebra de Tarefas Complexas (Micro-steps)
+“Fazer um Recurso” é uma tarefa muito grande e dá preguiça. O sistema quebra isso
+em pedaços mastigáveis.
+Ação: O advogado adiciona a tarefa “Recurso de Apelação”. O sistema cria um
+checklist automático:
+Separar guias de custas.
+Redigir preliminares.
+Redigir mérito (pedir reforma da decisão).
+Assinar e protocolar no e-SAJ.
+💰 Onde está o dinheiro nessa ideia?
+Esse tipo de ferramenta é vendida como um “Estagiário Digital”. Advogados
+autônomos geralmente não têm dinheiro (ou espaço) para contratar um estagiário de
+Direito ou um assistente administrativo.
+Se você oferece um software que organiza o dia dele e ajuda a redigir as peças por R
+300 por mês, é um negócio extremamente barato para ele (um estagiário real
+custaria mais de R$ 1.000).
+🧱 Como seria a base técnica disso (Stack isolada)
+Se você fosse montar apenas isso, sem o Escavador, a arquitetura seria:
+Banco de Dados: Para salvar a agenda, clientes e anotações.
+Integração com IA (OpenAI / Claude): Essencial para a parte de “Apoio em
+artigos e petição”. É a IA que vai ler o rascunho do advogado e cuspir a estrutura
+legal formatada.
+Interface (Front-end): Diferente de um sistema só de WhatsApp, esse precisa
+muito de um Dashboard Web ou Desktop (React/Next.js). O advogado precisa de
+uma tela grande para ler peças, aprovar artigos legais e marcar o checklist do dia.
