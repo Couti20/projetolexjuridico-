@@ -51,6 +51,7 @@ export function HelpCenterPage() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [ticketStatus, setTicketStatus] = useState<TicketStatus>('idle');
+  const timeoutRef = useRef<number | null>(null);
 
   const filteredFaq = useMemo(() => {
     const normalized = search.trim().toLowerCase();
@@ -62,6 +63,12 @@ export function HelpCenterPage() {
     );
   }, [search]);
 
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
   async function handleSubmitTicket(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!subject.trim() || !message.trim()) return;
@@ -72,7 +79,7 @@ export function HelpCenterPage() {
     setSubject('');
     setMessage('');
 
-    window.setTimeout(() => {
+    timeoutRef.current = window.setTimeout(() => {
       setTicketStatus('idle');
     }, 2500);
   }
