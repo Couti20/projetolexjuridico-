@@ -1,7 +1,14 @@
+/**
+ * AssistantHeaderSummary — banner de resumo do assistente.
+ *
+ * Exibe a OAB única do usuário no lugar de "OABs ativas" (contagem).
+ */
+
 import type { WhatsAppConnectionStatus } from './types';
 
 interface AssistantHeaderSummaryProps {
-  oabCount: number;
+  /** OAB formatada do usuário (ex: OAB/SP 123.456) ou string vazia */
+  userOab: string;
   whatsAppStatus: WhatsAppConnectionStatus;
   alertsEnabledCount: number;
   quietHoursEnabled: boolean;
@@ -10,7 +17,7 @@ interface AssistantHeaderSummaryProps {
 }
 
 export function AssistantHeaderSummary({
-  oabCount,
+  userOab,
   whatsAppStatus,
   alertsEnabledCount,
   quietHoursEnabled,
@@ -20,17 +27,22 @@ export function AssistantHeaderSummary({
   return (
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-blue-900 p-5 sm:p-6">
       <div className="relative z-10">
-        <h1 className="text-xl sm:text-2xl font-bold text-white">Configuracoes do assistente</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-white">Configurações do assistente</h1>
         <p className="text-sm text-blue-100 mt-1 max-w-3xl">
-          Centralize monitoramento de OAB, conexao do WhatsApp e preferencias de notificacao para manter sua rotina
-          juridica organizada e sem perda de prazo.
+          Centralize monitoramento de OAB, conexão do WhatsApp e preferências de notificação para manter sua rotina
+          jurídica organizada e sem perda de prazo.
         </p>
 
         <div className="mt-4 grid grid-cols-2 xl:grid-cols-4 gap-2.5">
+          {/* OAB do usuário */}
           <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-wide text-blue-100/80 font-semibold">OABs ativas</p>
-            <p className="text-lg font-bold text-white mt-0.5">{oabCount}</p>
+            <p className="text-[11px] uppercase tracking-wide text-blue-100/80 font-semibold">Minha OAB</p>
+            <p className="text-sm font-bold text-white mt-1 truncate">
+              {userOab || <span className="text-blue-300 font-normal italic">Não cadastrada</span>}
+            </p>
           </div>
+
+          {/* WhatsApp */}
           <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
             <p className="text-[11px] uppercase tracking-wide text-blue-100/80 font-semibold">WhatsApp</p>
             <p className="text-sm font-semibold text-white mt-1">
@@ -41,14 +53,18 @@ export function AssistantHeaderSummary({
                 : 'Desconectado'}
             </p>
           </div>
+
+          {/* Alertas ativos */}
           <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
             <p className="text-[11px] uppercase tracking-wide text-blue-100/80 font-semibold">Alertas ativos</p>
             <p className="text-lg font-bold text-white mt-0.5">{alertsEnabledCount}/4</p>
           </div>
+
+          {/* Silencioso */}
           <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
             <p className="text-[11px] uppercase tracking-wide text-blue-100/80 font-semibold">Silencioso</p>
             <p className="text-sm font-semibold text-white mt-1">
-              {quietHoursEnabled ? `${quietStart} - ${quietEnd}` : 'Desativado'}
+              {quietHoursEnabled ? `${quietStart} – ${quietEnd}` : 'Desativado'}
             </p>
           </div>
         </div>

@@ -1,9 +1,18 @@
+/**
+ * AssistantSettingsPage — Configurações do assistente.
+ *
+ * Refatorado para usar apenas a OAB única do usuário autenticado (AuthContext).
+ * Toda a lógica de múltiplas OABs (oabs[], handleAddOab, handleRemoveOab,
+ * oabInput, oabFeedback) foi removida — o modelo de negócio é 1 OAB por usuário.
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '../layouts/AppLayout';
 import { AssistantHeaderSummary } from '../components/assistant-settings/AssistantHeaderSummary';
 import { OabMonitoringSection } from '../components/assistant-settings/OabMonitoringSection';
 import { WhatsAppIntegrationSection } from '../components/assistant-settings/WhatsAppIntegrationSection';
 import { NotificationPreferencesSection } from '../components/assistant-settings/NotificationPreferencesSection';
+import { useAuth } from '../hooks/useAuth';
 import type {
   NotificationPreferences,
   OabEntry,
@@ -13,15 +22,12 @@ import type {
 } from '../components/assistant-settings/types';
 
 interface StoredAssistantSettings {
-  oabs?: OabEntry[];
   notifications?: NotificationPreferences;
   whatsAppStatus?: WhatsAppConnectionStatus;
   connectedDevice?: string;
 }
 
-const STORAGE_KEY = 'lex-assistant-settings-v2';
-
-const INITIAL_OABS: OabEntry[] = [{ id: 'oab-sp-123456', uf: 'SP', number: '123456' }];
+const STORAGE_KEY = 'lex-assistant-settings-v3';
 
 const INITIAL_NOTIFICATIONS: NotificationPreferences = {
   criticalAlerts24h: true,
@@ -36,41 +42,34 @@ const INITIAL_NOTIFICATIONS: NotificationPreferences = {
 
 function getStoredSettings(): StoredAssistantSettings {
   if (typeof window === 'undefined') return {};
-
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};
-
     return parsed as StoredAssistantSettings;
-  } catch (error) {
-    console.error('Nao foi possivel restaurar configuracoes do assistente.', error);
+  } catch {
     return {};
   }
 }
 
-function normalizeOabInput(value: string): OabEntry | null {
-  const cleaned = value.trim().toUpperCase().replace(/\s+/g, ' ');
-  const normalized = cleaned
-    .replace(/^OAB\/?/, '')
-    .replace(/[.\-]/g, '')
-    .trim();
-
-  const match = normalized.match(/^([A-Z]{2})\s*([0-9]{4,6})$/);
-  if (!match) return null;
-
-  return {
-    id: `oab-${match[1].toLowerCase()}-${match[2]}`,
-    uf: match[1],
-    number: match[2],
-  };
+/** Formata a OAB do perfil para exibição: OAB/SP 123.456 */
+function formatUserOab(raw: string | undefined): string {
+  if (!raw?.trim()) return '';
+  // Já pode vir formatada do AuthContext; normaliza para padrão visual
+  const cleaned = raw.trim().toUpperCase();
+  // Remove prefixo duplicado se houver
+  const withoutPrefix = cleaned.replace(/^OAB\/?/, '').trim();
+  const match = withoutPrefix.match(/^([A-Z]{2})[\s/]*(\d{4,6})$/);
+  if (!match) return cleaned; // devolve como está se não bater o padrão
+  const [, uf, number] = match;
+  const formattedNumber = number.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `OAB/${uf} ${formattedNumber}`;
 }
 
-function formatOab(oab: OabEntry): string {
-  const formattedNumber = oab.number.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `OAB/${oab.uf} ${formattedNumber}`;
+// Ainda necessário para compatibilidade com OabMonitoringSection
+function formatOabEntry(oab: OabEntry): string {
+  return `OAB/${oab.uf} ${oab.number.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }
 
 function finderValue(row: number, col: number, originRow: number, originCol: number): boolean {
@@ -84,87 +83,63 @@ function finderValue(row: number, col: number, originRow: number, originCol: num
 function buildQrCells(seed: number, size = 21): boolean[] {
   const cells: boolean[] = [];
   let state = seed * 9301 + 49297;
-
   for (let row = 0; row < size; row += 1) {
     for (let col = 0; col < size; col += 1) {
-      const onTopLeft = row <= 6 && col <= 6;
-      const onTopRight = row <= 6 && col >= size - 7;
+      const onTopLeft    = row <= 6 && col <= 6;
+      const onTopRight   = row <= 6 && col >= size - 7;
       const onBottomLeft = row >= size - 7 && col <= 6;
-
-      if (onTopLeft) {
-        cells.push(finderValue(row, col, 0, 0));
-        continue;
-      }
-      if (onTopRight) {
-        cells.push(finderValue(row, col, 0, size - 7));
-        continue;
-      }
-      if (onBottomLeft) {
-        cells.push(finderValue(row, col, size - 7, 0));
-        continue;
-      }
-
+      if (onTopLeft)    { cells.push(finderValue(row, col, 0, 0));            continue; }
+      if (onTopRight)   { cells.push(finderValue(row, col, 0, size - 7));     continue; }
+      if (onBottomLeft) { cells.push(finderValue(row, col, size - 7, 0));     continue; }
       state = (state * 1103515245 + 12345) % 2147483648;
       cells.push((state % 9) < 4);
     }
   }
-
   return cells;
 }
 
 export function AssistantSettingsPage() {
-  const stored = useMemo(() => getStoredSettings(), []);
+  const { user } = useAuth();
+  const stored   = useMemo(() => getStoredSettings(), []);
 
-  const [oabs, setOabs] = useState<OabEntry[]>(stored.oabs ?? INITIAL_OABS);
-  const [oabInput, setOabInput] = useState('');
-  const [oabFeedback, setOabFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  // OAB única: vem do perfil do usuário autenticado
+  const userOab = formatUserOab(user?.oab);
 
-  const [whatsAppStatus, setWhatsAppStatus] = useState<WhatsAppConnectionStatus>(stored.whatsAppStatus ?? 'connected');
-  const [connectedDevice, setConnectedDevice] = useState(stored.connectedDevice ?? 'iPhone 15 do Dr. Joao');
-  const [qrSeed, setQrSeed] = useState(11);
-  const [qrExpiresAt, setQrExpiresAt] = useState(() => Date.now() + 2 * 60 * 1000);
-  const [clockTick, setClockTick] = useState(Date.now());
-  const [testStatus, setTestStatus] = useState<TestStatus>('idle');
-
-  const [notifications, setNotifications] = useState<NotificationPreferences>(
-    stored.notifications ?? INITIAL_NOTIFICATIONS,
-  );
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [whatsAppStatus,  setWhatsAppStatus]  = useState<WhatsAppConnectionStatus>(stored.whatsAppStatus  ?? 'connected');
+  const [connectedDevice, setConnectedDevice] = useState(stored.connectedDevice ?? 'iPhone 15 do Dr. João');
+  const [qrSeed,          setQrSeed]          = useState(11);
+  const [qrExpiresAt,     setQrExpiresAt]     = useState(() => Date.now() + 2 * 60 * 1000);
+  const [clockTick,       setClockTick]       = useState(Date.now());
+  const [testStatus,      setTestStatus]      = useState<TestStatus>('idle');
+  const [notifications,   setNotifications]   = useState<NotificationPreferences>(stored.notifications ?? INITIAL_NOTIFICATIONS);
+  const [saveStatus,      setSaveStatus]      = useState<SaveStatus>('idle');
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => setClockTick(Date.now()), 1000);
-    return () => window.clearInterval(intervalId);
+    const id = window.setInterval(() => setClockTick(Date.now()), 1000);
+    return () => window.clearInterval(id);
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({
-        oabs,
-        notifications,
-        whatsAppStatus,
-        connectedDevice,
-      } satisfies StoredAssistantSettings),
+      JSON.stringify({ notifications, whatsAppStatus, connectedDevice } satisfies StoredAssistantSettings),
     );
-  }, [connectedDevice, notifications, oabs, whatsAppStatus]);
+  }, [connectedDevice, notifications, whatsAppStatus]);
 
   const qrCells = useMemo(() => buildQrCells(qrSeed), [qrSeed]);
+
   const alertsEnabledCount = useMemo(
-    () =>
-      [
-        notifications.criticalAlerts24h,
-        notifications.dailySummaryMorning,
-        notifications.aiTaskSuggestions,
-        notifications.weeklyProductivityReport,
-      ].filter(Boolean).length,
+    () => [
+      notifications.criticalAlerts24h,
+      notifications.dailySummaryMorning,
+      notifications.aiTaskSuggestions,
+      notifications.weeklyProductivityReport,
+    ].filter(Boolean).length,
     [notifications],
   );
 
   const qrRemainingSeconds = Math.max(0, Math.ceil((qrExpiresAt - clockTick) / 1000));
-  const qrCountdown = `${String(Math.floor(qrRemainingSeconds / 60)).padStart(2, '0')}:${String(
-    qrRemainingSeconds % 60,
-  ).padStart(2, '0')}`;
+  const qrCountdown = `${String(Math.floor(qrRemainingSeconds / 60)).padStart(2, '0')}:${String(qrRemainingSeconds % 60).padStart(2, '0')}`;
 
   function markSaved() {
     setSaveStatus('saved');
@@ -173,60 +148,6 @@ export function AssistantSettingsPage() {
 
   function updateNotification<K extends keyof NotificationPreferences>(key: K, value: NotificationPreferences[K]) {
     setNotifications((prev) => ({ ...prev, [key]: value }));
-    markSaved();
-  }
-
-  function handleAddOab() {
-    const tokens = oabInput
-      .split(/[\n,;]+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-
-    if (tokens.length === 0) {
-      setOabFeedback({ type: 'error', text: 'Digite ao menos uma OAB valida para adicionar.' });
-      return;
-    }
-
-    const parsedEntries: OabEntry[] = [];
-    const invalidInputs: string[] = [];
-
-    for (const token of tokens) {
-      const parsed = normalizeOabInput(token);
-      if (!parsed) {
-        invalidInputs.push(token);
-      } else {
-        parsedEntries.push(parsed);
-      }
-    }
-
-    if (invalidInputs.length > 0) {
-      setOabFeedback({
-        type: 'error',
-        text: `Formato invalido: ${invalidInputs[0]}. Exemplo aceito: OAB/SP 123456`,
-      });
-      return;
-    }
-
-    const existingIds = new Set(oabs.map((entry) => entry.id));
-    const newEntries = parsedEntries.filter((entry) => !existingIds.has(entry.id));
-
-    if (newEntries.length === 0) {
-      setOabFeedback({ type: 'error', text: 'As OABs informadas ja estavam em monitoramento.' });
-      return;
-    }
-
-    setOabs((prev) => [...prev, ...newEntries]);
-    setOabInput('');
-    setOabFeedback({
-      type: 'success',
-      text: `${newEntries.length} OAB adicionada${newEntries.length > 1 ? 's' : ''} com sucesso.`,
-    });
-    markSaved();
-  }
-
-  function handleRemoveOab(id: string) {
-    setOabs((prev) => prev.filter((entry) => entry.id !== id));
-    setOabFeedback({ type: 'success', text: 'OAB removida do monitoramento.' });
     markSaved();
   }
 
@@ -246,17 +167,12 @@ export function AssistantSettingsPage() {
     setWhatsAppStatus('connecting');
     window.setTimeout(() => {
       setWhatsAppStatus('connected');
-      setConnectedDevice('iPhone 15 do Dr. Joao');
+      setConnectedDevice('iPhone 15 do Dr. João');
       markSaved();
     }, 900);
   }
 
   function handleSendTestMessage() {
-    if (whatsAppStatus !== 'connected') {
-      setOabFeedback({ type: 'error', text: 'Conecte o WhatsApp antes de enviar notificacao de teste.' });
-      return;
-    }
-
     setTestStatus('sending');
     window.setTimeout(() => {
       setTestStatus('sent');
@@ -268,7 +184,7 @@ export function AssistantSettingsPage() {
     <AppLayout>
       <div className="max-w-7xl mx-auto space-y-5">
         <AssistantHeaderSummary
-          oabCount={oabs.length}
+          userOab={userOab}
           whatsAppStatus={whatsAppStatus}
           alertsEnabledCount={alertsEnabledCount}
           quietHoursEnabled={notifications.quietHoursEnabled}
@@ -278,16 +194,8 @@ export function AssistantSettingsPage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <OabMonitoringSection
-            oabs={oabs}
-            oabInput={oabInput}
-            oabFeedback={oabFeedback}
-            onOabInputChange={(value) => {
-              setOabInput(value);
-              setOabFeedback(null);
-            }}
-            onAddOab={handleAddOab}
-            onRemoveOab={handleRemoveOab}
-            formatOab={formatOab}
+            userOab={userOab}
+            formatOab={formatOabEntry}
           />
 
           <WhatsAppIntegrationSection
