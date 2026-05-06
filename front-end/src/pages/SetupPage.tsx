@@ -1,15 +1,14 @@
 /**
- * Página de configuração inicial (onboarding pós-login).
+ * SetupPage — Onboarding pós-login.
  *
- * Exibida após o primeiro login — coleta:
- *   1. OAB principal (com validação inline via API do Escavador)
- *   2. Número de WhatsApp para alertas
- *
- * Layout: card centralizado com progress bar no topo.
- * Lógica isolada no hook useSetupForm.
+ * Campo WhatsApp usa IMaskInput (react-imask) com máscara (00) 00000-0000.
+ * O valor entregue ao Zod ainda é a string mascarada; o schema transforma
+ * para E.164 (+5511999999999) antes de enviar ao FastAPI.
  */
 
 import { useEffect } from 'react';
+import { Controller } from 'react-hook-form';
+import { IMaskInput } from 'react-imask';
 import { Scale, CheckCircle2, Loader2, AlertCircle, Monitor, Brain, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSetupForm } from '../hooks/useSetupForm';
@@ -22,42 +21,39 @@ const BENEFITS = [
 ];
 
 interface SetupPageProps {
-  onSkip:       () => void;
+  onSkip: () => void;
   onNavigateDashboard: () => void;
 }
 
 export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
   const {
-    form,
-    errors,
-    status,
+    control,
+    formState: { errors },
+    isLoading,
+    isSuccess,
     serverError,
-    updateField,
+    register,
+    oabStatus,
     validateOabOnline,
     handleSubmit,
+    maskOab,
   } = useSetupForm();
 
-  const isLoading       = status === 'loading';
-  const isValidatingOab = status === 'validating-oab';
-  const isOabValid      = status === 'oab-valid';
-  const isSuccess       = status === 'success';
+  const isValidatingOab = oabStatus === 'validating-oab';
+  const isOabValid      = oabStatus === 'oab-valid';
 
   useEffect(() => {
     if (!isSuccess) return;
-
     const timeoutId = window.setTimeout(() => {
       onNavigateDashboard();
     }, 1600);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
+    return () => window.clearTimeout(timeoutId);
   }, [isSuccess, onNavigateDashboard]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
 
-      {/* Logo topo */}
+      {/* Logo */}
       <div className="flex items-center gap-2 mb-8">
         <div className="bg-blue-600 text-white p-2 rounded-xl">
           <Scale size={22} />
@@ -81,7 +77,7 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
         <div className="p-8 sm:p-10">
           <AnimatePresence mode="wait">
 
-            {/* ── Estado de sucesso ── */}
+            {/* ── Sucesso ── */}
             {isSuccess ? (
               <motion.div
                 key="success"
@@ -117,7 +113,6 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.3 }}
               >
-                {/* Cabeçalho */}
                 <div className="mb-8 text-center">
                   <h1 className="text-2xl font-bold text-slate-900 mb-2">
                     Vamos configurar seu assistente
@@ -127,7 +122,6 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                   </p>
                 </div>
 
-                {/* Erro de servidor */}
                 {serverError && (
                   <motion.div
                     initial={{ opacity: 0, y: -8 }}
@@ -142,7 +136,7 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
 
                 <form onSubmit={handleSubmit} noValidate className="space-y-6">
 
-                  {/* Campo OAB */}
+                  {/* ── Campo OAB ── */}
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-slate-800">
                       1. Qual sua OAB principal?
@@ -156,11 +150,14 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                         id="oab"
                         type="text"
                         placeholder="SP 123.456"
-                        value={form.oab}
-                        onChange={(e) => updateField('oab', e.target.value)}
                         disabled={isLoading}
                         aria-invalid={Boolean(errors.oab)}
                         aria-describedby={errors.oab ? 'oab-error' : undefined}
+                        {...register('oab', {
+                          onChange: (e) => {
+                            e.target.value = maskOab(e.target.value);
+                          },
+                        })}
                         className={[
                           'w-full rounded-xl border px-4 py-3 pr-24 text-sm text-slate-800 outline-none transition-all',
                           'placeholder:text-slate-400',
@@ -173,7 +170,6 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                         ].join(' ')}
                       />
 
-                      {/* Botão / status inline */}
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         {isValidatingOab ? (
                           <Loader2 size={16} className="animate-spin text-slate-400" />
@@ -190,7 +186,7 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                           <button
                             type="button"
                             onClick={validateOabOnline}
-                            disabled={!form.oab.trim() || isLoading}
+                            disabled={isLoading}
                             className="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                           >
                             Validar
@@ -201,29 +197,56 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
 
                     {errors.oab && (
                       <p id="oab-error" role="alert" className="text-xs text-red-600 font-medium">
-                        {errors.oab}
+                        {errors.oab.message}
                       </p>
                     )}
                   </div>
 
-                  {/* Campo WhatsApp */}
+                  {/* ── Campo WhatsApp com react-imask ── */}
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-slate-800">
                       2. Onde quer receber os alertas?
                     </p>
                     <p className="text-xs text-slate-500 -mt-1">
-                      Insira o número do WhatsApp que você usa no dia a dia.
+                      Insira o número do WhatsApp com DDD. Enviaremos os alertas de prazo aqui.
                     </p>
-                    <InputField
-                      id="whatsapp"
-                      label="WhatsApp"
-                      type="tel"
-                      placeholder="(11) 99999-9999"
-                      value={form.whatsapp}
-                      onChange={(e) => updateField('whatsapp', e.target.value)}
-                      error={errors.whatsapp}
-                      disabled={isLoading}
-                      autoComplete="tel"
+
+                    <Controller
+                      name="whatsapp"
+                      control={control}
+                      render={({ field }) => (
+                        <div>
+                          <IMaskInput
+                            {...field}
+                            id="whatsapp"
+                            mask="(00) 00000-0000"
+                            unmask={false}
+                            placeholder="(11) 99999-9999"
+                            inputMode="numeric"
+                            autoComplete="tel-national"
+                            disabled={isLoading}
+                            aria-invalid={Boolean(errors.whatsapp)}
+                            aria-describedby={errors.whatsapp ? 'whatsapp-error' : 'whatsapp-hint'}
+                            onAccept={(value: string) => field.onChange(value)}
+                            className={[
+                              'w-full rounded-xl border px-4 py-3 text-sm text-slate-800 outline-none transition-all',
+                              'placeholder:text-slate-400',
+                              'focus:ring-2 focus:ring-blue-600 focus:border-blue-600',
+                              errors.whatsapp
+                                ? 'border-red-400 bg-red-50 focus:ring-red-400 focus:border-red-400'
+                                : 'border-slate-200 bg-white hover:border-slate-300',
+                            ].join(' ')}
+                          />
+                          <p id="whatsapp-hint" className="mt-1 text-xs text-slate-400">
+                            Formato: (DDD) + número. Ex: (11) 99999-9999
+                          </p>
+                          {errors.whatsapp && (
+                            <p id="whatsapp-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
+                              {errors.whatsapp.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     />
                   </div>
 
@@ -259,7 +282,6 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                   </button>
                 </form>
 
-                {/* Pular */}
                 <div className="mt-5 text-center">
                   <button
                     type="button"

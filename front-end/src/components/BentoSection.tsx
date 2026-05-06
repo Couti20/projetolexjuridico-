@@ -69,7 +69,8 @@ export function BentoSection() {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                   </span>
                 </h3>
-                <p className="text-slate-400 text-xs">Passe o mouse no gráfico para detalhes.</p>
+                {/* Contraste corrigido: slate-400 → slate-200 (WCAG AA sobre bg-slate-900) */}
+                <p className="text-slate-200 text-xs">Passe o mouse no gráfico para detalhes.</p>
               </div>
             </div>
           </div>
