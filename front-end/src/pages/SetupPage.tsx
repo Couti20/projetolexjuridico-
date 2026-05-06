@@ -43,7 +43,7 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
   const isSuccess       = status === 'success';
 
   useEffect(() => {
-    if (!isSuccess) return undefined;
+    if (!isSuccess) return;
 
     const timeoutId = window.setTimeout(() => {
       onNavigateDashboard();
