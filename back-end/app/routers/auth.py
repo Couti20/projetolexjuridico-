@@ -3,33 +3,84 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import create_access_token, get_current_user
-from app.schemas.auth import AuthUser, LoginRequest, LoginResponse
-from app.config import settings
-from app.services.user_service import get_user_by_email, verify_password, to_auth_user
+from app.schemas.auth import AuthUser, LoginRequest, LoginResponse, RegisterRequest
+from app.services.user_service import (
+    create_user,
+    get_user_by_email,
+    to_auth_user,
+    verify_password,
+)
 
 router = APIRouter()
+
+IS_DEV = settings.APP_ENV == "development"
+
+
+@router.post("/register", response_model=LoginResponse, status_code=201)
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    """
+    Cadastra novo advogado.
+    Retorna JWT já autenticado (login automático após cadastro).
+    """
+    existing = get_user_by_email(db, payload.email)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Já existe uma conta com este e-mail.",
+        )
+
+    if len(payload.password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A senha deve ter no mínimo 6 caracteres.",
+        )
+
+    user = create_user(
+        db=db,
+        full_name=payload.full_name,
+        email=payload.email,
+        oab=payload.oab,
+        plain_password=payload.password,
+    )
+
+    auth_user = to_auth_user(user)
+    token = create_access_token({"sub": auth_user.id, "email": auth_user.email})
+
+    return LoginResponse(
+        user=auth_user,
+        accessToken=token,
+        expiresIn=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
 
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     """
-    Autentica o advogado com e-mail e senha.
-    1º tenta banco real; se banco vazio cai no mock de desenvolvimento.
+    Autentica o advogado.
+    - Produção: só aceita usuários cadastrados no banco.
+    - Desenvolvimento: se não encontrar no banco, usa mock temporário.
     """
     user = get_user_by_email(db, payload.email)
 
     if user:
-        # ── Banco real ─────────────────────────────────────────────────────────
+        # ── Usuário real do banco ───────────────────────────────────────────
         if not verify_password(payload.password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="E-mail ou senha incorretos.",
             )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Conta desativada. Entre em contato com o suporte.",
+            )
         auth_user = to_auth_user(user)
-    else:
-        # ── Mock (desenvolvimento — remover em produção) ────────────────────────
+
+    elif IS_DEV:
+        # ── Mock só em desenvolvimento ─────────────────────────────────────────
         if len(payload.password) < 6:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -40,6 +91,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
             fullName=payload.email.split("@")[0].replace(".", " ").title(),
             email=payload.email,
             oab="OAB/SP 000.000",
+        )
+
+    else:
+        # ── Produção: não existe esse usuário ──────────────────────────────────
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="E-mail ou senha incorretos.",
         )
 
     token = create_access_token({"sub": auth_user.id, "email": auth_user.email})
