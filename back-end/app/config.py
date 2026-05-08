@@ -21,3 +21,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.APP_ENV.lower() == "production" and settings.SECRET_KEY == "dev-secret-key-troque-em-producao":
+    raise RuntimeError("SECRET_KEY insegura para produção. Configure uma chave forte no ambiente.")

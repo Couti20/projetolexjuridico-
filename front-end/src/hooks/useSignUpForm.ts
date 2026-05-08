@@ -8,10 +8,13 @@
 
 import { useState, useCallback, type FormEvent } from 'react';
 import type { SignUpFormData, SignUpFormErrors, SignUpStatus } from '../types/auth';
+import { authService } from '../services/authService';
+import { ApiError } from '../services/api';
 
 const INITIAL_FORM: SignUpFormData = {
   fullName: '',
   email: '',
+  oab: '',
   password: '',
   confirmPassword: '',
   acceptedTerms: false,
@@ -24,7 +27,9 @@ function validateEmail(email: string): boolean {
 function validatePassword(password: string): string | undefined {
   if (password.length < 8) return 'Mínimo de 8 caracteres.';
   if (!/[A-Z]/.test(password)) return 'Inclua 1 letra maiúscula.';
+  if (!/[a-z]/.test(password)) return 'Inclua 1 letra minúscula.';
   if (!/[0-9]/.test(password)) return 'Inclua 1 número.';
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Inclua 1 caractere especial.';
   return undefined;
 }
 
@@ -37,6 +42,10 @@ function validateForm(data: SignUpFormData): SignUpFormErrors {
 
   if (!validateEmail(data.email)) {
     errors.email = 'Informe um e-mail válido.';
+  }
+
+  if (!data.oab.trim() || !/^[A-Za-z]{2}\s?\d{4,6}$/.test(data.oab.trim())) {
+    errors.oab = 'Informe a OAB no formato UF 123456.';
   }
 
   const passwordError = validatePassword(data.password);
@@ -92,6 +101,10 @@ export function useSignUpForm() {
         nextErrors.email = undefined;
       }
 
+      if (field === 'oab' && nextErrors.oab) {
+        nextErrors.oab = undefined;
+      }
+
       return nextErrors;
     },
     [],
@@ -122,14 +135,19 @@ export function useSignUpForm() {
       setStatus('loading');
 
       try {
-        /**
-         * TODO: substituir pelo serviço real quando o back-end estiver pronto.
-         * Exemplo: await authService.signUp(form);
-         */
-        await new Promise((resolve) => setTimeout(resolve, 1200)); // Simulação
+        await authService.register({
+          fullName: form.fullName,
+          email: form.email,
+          oab: form.oab,
+          password: form.password,
+        });
         setStatus('success');
-      } catch {
+      } catch (error) {
         setStatus('error');
+        if (error instanceof ApiError && error.code === 'email_in_use') {
+          setServerError('Este e-mail já está cadastrado. Faça login para continuar.');
+          return;
+        }
         setServerError('Não foi possível criar sua conta. Tente novamente.');
       }
     },

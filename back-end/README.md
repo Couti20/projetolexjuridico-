@@ -5,7 +5,7 @@ API REST do Lex, construída com **FastAPI + Python 3.12**.
 ## Pré-requisitos
 
 - Python 3.12+
-- PostgreSQL 15+
+- MySQL 8+ (XAMPP compatível)
 
 ## Configuração local
 

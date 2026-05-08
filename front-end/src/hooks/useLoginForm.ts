@@ -9,7 +9,7 @@
 import { useState, useCallback, type FormEvent } from 'react';
 import type { AuthUser, LoginFormData, LoginFormErrors, LoginStatus } from '../types/auth';
 import { authService } from '../services/authService';
-import { ApiError } from '../services/api';
+import { ApiError, setAuthToken } from '../services/api';
 
 const INITIAL_FORM: LoginFormData = {
   email: '',
@@ -71,6 +71,7 @@ export function useLoginForm() {
           password: form.password,
         });
 
+        setAuthToken(response.accessToken);
         setAuthenticatedUser(response.user);
         setStatus('success');
       } catch (error) {

@@ -47,12 +47,6 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             detail="Já existe uma conta com este e-mail.",
         )
 
-    if len(payload.password) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="A senha deve ter no mínimo 6 caracteres.",
-        )
-
     user = create_user(
         db=db,
         full_name=payload.full_name,
@@ -84,7 +78,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     if not _banco_acessivel():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Serviço temporáriamente indisponível. Tente novamente em instantes.",
+            detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
         )
 
     user = get_user_by_email(db, payload.email)

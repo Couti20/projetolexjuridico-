@@ -38,7 +38,7 @@ function SuccessState({ onBack, onGoLogin }: SuccessStateProps) {
       <div>
         <h2 className="text-2xl font-bold text-slate-900 mb-2">Conta criada!</h2>
         <p className="text-slate-500 max-w-xs">
-          Enviamos um link de confirmação para seu e-mail. Depois da confirmação, faça login para entrar no painel.
+          Seu cadastro foi salvo com sucesso. Faça login para entrar no painel.
         </p>
       </div>
       <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -188,11 +188,23 @@ export function SignUpPage({ onNavigateHome, onNavigateLogin }: SignUpPageProps)
                     disabled={isLoading}
                   />
 
+                  <InputField
+                    id="oab"
+                    label="OAB"
+                    type="text"
+                    autoComplete="off"
+                    placeholder="SP 123456"
+                    value={form.oab}
+                    onChange={(e) => updateField('oab', e.target.value.toUpperCase())}
+                    error={errors.oab}
+                    disabled={isLoading}
+                  />
+
                   <PasswordInput
                     id="password"
                     label="Crie uma Senha"
                     autoComplete="new-password"
-                    placeholder="Mín. 8 caracteres, 1 maiúscula e 1 número"
+                    placeholder="Mín. 8 caracteres, 1 maiúscula, 1 número e 1 símbolo"
                     value={form.password}
                     onChange={(e) => updateField('password', e.target.value)}
                     error={errors.password}

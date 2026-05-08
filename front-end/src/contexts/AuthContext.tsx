@@ -1,9 +1,9 @@
 
 import { createContext, useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { AuthSession, AuthUser } from '../types/auth';
+import { clearAuthToken, getAuthToken } from '../services/api';
 
 const AUTH_STORAGE_KEY = 'lex-auth-session';
-const DEV_MOCK_DISABLED_KEY = 'lex-dev-mock-disabled';
 
 /**
  * Tempo máximo de validade de uma sessão armazenada localmente.
@@ -11,42 +11,6 @@ const DEV_MOCK_DISABLED_KEY = 'lex-dev-mock-disabled';
  * Valor: 8 horas (ajustável conforme política de segurança do produto).
  */
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 horas em milissegundos
-const ENABLE_DEV_MOCK_USER = import.meta.env.DEV;
-
-const DEV_MOCK_USER: AuthUser = {
-  id: 'user-lex-admin',
-  fullName: 'Admin Lex',
-  email: 'admin@lexjuridico.local',
-  oab: 'OAB/SP 123.456',
-};
-
-function createDevMockSession(): AuthSession {
-  return {
-    user: DEV_MOCK_USER,
-    authenticatedAt: Date.now(),
-  };
-}
-
-function isDevMockDisabled() {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(DEV_MOCK_DISABLED_KEY) === 'true';
-}
-
-function setDevMockDisabled(disabled: boolean) {
-  if (typeof window === 'undefined') return;
-
-  if (disabled) {
-    window.localStorage.setItem(DEV_MOCK_DISABLED_KEY, 'true');
-    return;
-  }
-
-  window.localStorage.removeItem(DEV_MOCK_DISABLED_KEY);
-}
-
-function shouldUseDevMockUser() {
-  return ENABLE_DEV_MOCK_USER && !isDevMockDisabled();
-}
-
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
@@ -61,9 +25,7 @@ function readStoredSession(): AuthSession | null {
 
   try {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) {
-      return shouldUseDevMockUser() ? createDevMockSession() : null;
-    }
+    if (!raw) return null;
 
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
@@ -97,7 +59,7 @@ function readStoredSession(): AuthSession | null {
     };
   } catch (error) {
     console.error('Nao foi possivel restaurar a sessao local.', error);
-    return shouldUseDevMockUser() ? createDevMockSession() : null;
+    return null;
   }
 }
 
@@ -106,13 +68,9 @@ function storeSession(session: AuthSession | null) {
 
   if (!session) {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    if (ENABLE_DEV_MOCK_USER) {
-      setDevMockDisabled(true);
-    }
     return;
   }
 
-  setDevMockDisabled(false);
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 }
 
@@ -125,6 +83,9 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<AuthSession | null>(() => readStoredSession());
 
+  const hasToken = typeof window !== 'undefined' ? Boolean(getAuthToken()) : false;
+  const safeSession = hasToken ? session : null;
+
   const login = useCallback((user: AuthUser) => {
     const nextSession: AuthSession = {
       user,
@@ -136,6 +97,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(() => {
     setSession(null);
+    clearAuthToken();
     storeSession(null);
   }, []);
 
@@ -158,14 +120,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user: session?.user ?? null,
-      isAuthenticated: Boolean(session?.user),
-      session,
+      user: safeSession?.user ?? null,
+      isAuthenticated: Boolean(safeSession?.user),
+      session: safeSession,
       login,
       logout,
       updateUser,
     }),
-    [login, logout, session, updateUser],
+    [login, logout, safeSession, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

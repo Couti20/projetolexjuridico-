@@ -14,7 +14,10 @@ def hash_password(plain: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return pwd_context.verify(plain, hashed)
+    except (ValueError, TypeError):
+        return False
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -24,9 +27,9 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 def create_user(db: Session, full_name: str, email: str, oab: str, plain_password: str) -> User:
     user = User(
         id=str(uuid.uuid4()),
-        full_name=full_name,
+        full_name=full_name.strip(),
         email=email.lower(),
-        oab=oab,
+        oab=oab.strip().upper().replace(" ", ""),
         hashed_password=hash_password(plain_password),
         plan="light",
     )

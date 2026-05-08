@@ -1,5 +1,4 @@
-import type { AuthUser } from '../types/auth';
-import { ApiError, api } from './api';
+import { ApiError, api, clearAuthToken } from './api';
 
 export interface LoginPayload {
   email: string;
@@ -12,50 +11,125 @@ export interface LoginResponse {
   expiresIn: number;
 }
 
-function toDisplayName(email: string): string {
-  const localPart = email.split('@')[0] ?? '';
-  const pieces = localPart
-    .replace(/[._-]+/g, ' ')
-    .trim()
-    .split(' ')
-    .filter(Boolean);
-
-  if (pieces.length === 0) return 'Usuario Lex';
-
-  return pieces
-    .map((piece) => piece.charAt(0).toUpperCase() + piece.slice(1))
-    .join(' ');
+export interface RegisterPayload {
+  fullName: string;
+  email: string;
+  oab: string;
+  password: string;
 }
 
-function buildMockUser(email: string): AuthUser {
-  return {
-    id: `user-${email.toLowerCase()}`,
-    fullName: toDisplayName(email),
-    email: email.toLowerCase(),
-    oab: 'OAB/SP 123.456',
+function isValidLoginResponse(value: unknown): value is LoginResponse {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Record<string, unknown>;
+  const user = candidate.user as Record<string, unknown> | undefined;
+
+  return Boolean(
+    user &&
+    typeof user.id === 'string' &&
+    typeof user.fullName === 'string' &&
+    typeof user.email === 'string' &&
+    typeof user.oab === 'string' &&
+    typeof candidate.accessToken === 'string' &&
+    typeof candidate.expiresIn === 'number',
+  );
+}
+
+function getApiBaseUrl() {
+  const url = import.meta.env.VITE_API_URL;
+  if (!url) {
+    throw new ApiError(500, 'VITE_API_URL não configurada no front-end.', 'api_url_missing');
+  }
+  return url.replace(/\/+$/, '');
+}
+
+async function fetchAuthEndpoint<TBody extends Record<string, unknown>, TResponse>(
+  path: string,
+  body: TBody,
+  token?: string,
+): Promise<TResponse> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
   };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const responseBody = await response.json().catch(() => ({})) as Record<string, unknown>;
+
+  if (!response.ok) {
+    const detail = typeof responseBody.detail === 'string'
+      ? responseBody.detail
+      : typeof responseBody.message === 'string'
+      ? responseBody.message
+      : 'Erro inesperado.';
+
+    const code =
+      response.status === 401 ? 'invalid_credentials'
+      : response.status === 409 ? 'email_in_use'
+      : response.status === 422 ? 'validation_error'
+      : response.status === 503 ? 'service_unavailable'
+      : 'request_failed';
+
+    throw new ApiError(response.status, detail, code);
+  }
+
+  return responseBody as TResponse;
 }
 
 export const authService = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
-    return api.post('/auth/login', payload, ({ email, password }) => {
-      const normalizedEmail = email.trim().toLowerCase();
-      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
-      const isValidPassword = typeof password === 'string' && password.length >= 6;
+    const normalizedEmail = payload.email.trim().toLowerCase();
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+    const isValidPassword = typeof payload.password === 'string' && payload.password.length >= 6;
 
-      if (!isValidEmail || !isValidPassword) {
-        throw new ApiError(401, 'E-mail ou senha incorretos.', 'invalid_credentials');
-      }
+    if (!isValidEmail || !isValidPassword) {
+      throw new ApiError(401, 'E-mail ou senha incorretos.', 'invalid_credentials');
+    }
 
-      return {
-        user: buildMockUser(normalizedEmail),
-        accessToken: `mock-token-${Date.now()}`,
-        expiresIn: 3600,
-      };
+    const response = await fetchAuthEndpoint<{ email: string; password: string }, LoginResponse>(
+      '/auth/login',
+      {
+        email: normalizedEmail,
+        password: payload.password,
+      },
+    );
+    if (!isValidLoginResponse(response)) {
+      throw new ApiError(502, 'Resposta inválida do servidor de autenticação.', 'invalid_auth_response');
+    }
+
+    return response;
+  },
+
+  async register(payload: RegisterPayload): Promise<LoginResponse> {
+    const normalizedEmail = payload.email.trim().toLowerCase();
+    return fetchAuthEndpoint<
+      { full_name: string; email: string; oab: string; password: string },
+      LoginResponse
+    >('/auth/register', {
+      full_name: payload.fullName.trim(),
+      email: normalizedEmail,
+      oab: payload.oab.trim().toUpperCase(),
+      password: payload.password,
     });
   },
 
   async logout(): Promise<void> {
-    await api.post('/auth/logout', {}, () => ({ ok: true }), { minDelayMs: 120, maxDelayMs: 260 });
+    const token = window.localStorage.getItem('lex-auth-token') ?? undefined;
+    try {
+      if (token) {
+        await fetchAuthEndpoint('/auth/logout', {}, token);
+      } else {
+        await api.post('/auth/logout', {}, () => ({ ok: true }), { minDelayMs: 120, maxDelayMs: 260 });
+      }
+    } finally {
+      clearAuthToken();
+    }
   },
 };
