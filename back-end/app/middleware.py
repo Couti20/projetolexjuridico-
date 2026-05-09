@@ -35,14 +35,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Não vaza URL completa no Referer para origens externas
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-        # CSP conservador: só aceita recursos da mesma origem
-        # Ajuste 'connect-src' quando o front-end for para produção
+        # CSP: permite fontes via data: URI (necessário para Vite/Lucide em dev)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data:; "
-            "connect-src 'self'; "
+            "font-src 'self' data:; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self' ws://localhost:* http://localhost:*; "
             "frame-ancestors 'none';"
         )
 
