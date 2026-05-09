@@ -18,11 +18,19 @@ export default defineConfig(() => {
           target: 'http://localhost:8000',
           changeOrigin: true,
         },
+        '/users': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
         '/processes': {
           target: 'http://localhost:8000',
           changeOrigin: true,
         },
         '/tasks': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+        '/dashboard': {
           target: 'http://localhost:8000',
           changeOrigin: true,
         },
