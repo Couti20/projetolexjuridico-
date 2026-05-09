@@ -1,24 +1,22 @@
 /**
  * router.tsx — Configuração central de rotas com createBrowserRouter (React Router v6).
  *
- * Árvore PÚBLICA  → Landing, Cadastro, Login  (sem AppLayout)
- * Árvore PRIVADA  → Dashboard, Processos, Tarefas, Configurações  (com AppLayout)
- *
- * Todas as views privadas e pesadas usam React.lazy para code-splitting automático.
- * O Recharts (usado no Dashboard) é carregado apenas no chunk do Dashboard.
+ * Toda navegação interna usa <Navigate> ou useNavigate() do React Router.
+ * window.location.href NUNCA deve ser usado para rotas internas — causa
+ * reload completo que perde o estado do React Query e do AuthContext.
  */
 
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useNavigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { PrivateRoute } from './PrivateRoute';
 import { PageLoader } from '../components/PageLoader';
 
-// ── Árvore PÚBLICA (carregada imediatamente — bundle principal) ───────────────
+// ── Árvore PÚBLICA (carregada imediatamente — bundle principal) ──────────────────
 import LandingPage       from '../pages/public/LandingPage';
 import { SignUpPage }    from '../pages/SignUpPage';
 import { LoginPage }     from '../pages/LoginPage';
 
-// ── Árvore PRIVADA (lazy — carregadas sob demanda) ────────────────────────────
+// ── Árvore PRIVADA (lazy — carregadas sob demanda) ──────────────────────────
 const SetupPage               = lazy(() => import('../pages/SetupPage').then(m => ({ default: m.SetupPage })));
 const DashboardPage           = lazy(() => import('../pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const ProcessListPage         = lazy(() => import('../pages/ProcessListPage').then(m => ({ default: m.ProcessListPage })));
@@ -34,34 +32,61 @@ function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
 }
 
+// Wrappers que injetam useNavigate nas páginas que precisam de callbacks de navegação
+function LoginPageWrapper() {
+  const navigate = useNavigate();
+  return (
+    <LoginPage
+      onNavigateHome={() => navigate('/')}
+      onNavigateSignUp={() => navigate('/cadastro')}
+      onNavigateSetup={() => navigate('/configuracao')}
+    />
+  );
+}
+
+function SignUpPageWrapper() {
+  const navigate = useNavigate();
+  return (
+    <SignUpPage
+      onNavigateHome={() => navigate('/')}
+      onNavigateLogin={() => navigate('/login')}
+    />
+  );
+}
+
+function SetupPageWrapper() {
+  const navigate = useNavigate();
+  return (
+    <PrivateRoute requireSetup={false}>
+      <Lazy>
+        <SetupPage onNavigateDashboard={() => navigate('/dashboard')} />
+      </Lazy>
+    </PrivateRoute>
+  );
+}
+
 export const router = createBrowserRouter([
-  // ── Rotas públicas ──────────────────────────────────────────────────────────
+  // ── Rotas públicas ───────────────────────────────────────────────────────────────────
   {
     path: '/',
     element: <LandingPage />,
   },
   {
     path: '/cadastro',
-    element: <SignUpPage onNavigateHome={() => { window.location.href = '/'; }} onNavigateLogin={() => { window.location.href = '/login'; }} />,
+    element: <SignUpPageWrapper />,
   },
   {
     path: '/login',
-    element: <LoginPage onNavigateHome={() => { window.location.href = '/'; }} onNavigateSignUp={() => { window.location.href = '/cadastro'; }} onNavigateSetup={() => { window.location.href = '/configuracao'; }} />,
+    element: <LoginPageWrapper />,
   },
 
-  // ── Configuração inicial (semi-privada) ─────────────────────────────────────
+  // ── Configuração inicial (semi-privada) ───────────────────────────────────────
   {
     path: '/configuracao',
-    element: (
-      <PrivateRoute requireSetup={false}>
-        <Lazy>
-          <SetupPage onNavigateDashboard={() => { window.location.href = '/dashboard'; }} />
-        </Lazy>
-      </PrivateRoute>
-    ),
+    element: <SetupPageWrapper />,
   },
 
-  // ── Rotas privadas ──────────────────────────────────────────────────────────
+  // ── Rotas privadas ──────────────────────────────────────────────────────────────────
   {
     path: '/dashboard',
     element: <PrivateRoute><Lazy><DashboardPage /></Lazy></PrivateRoute>,
@@ -99,7 +124,7 @@ export const router = createBrowserRouter([
     element: <PrivateRoute><Lazy><HelpCenterPage /></Lazy></PrivateRoute>,
   },
 
-  // ── Fallback ────────────────────────────────────────────────────────────────
+  // ── Fallback ──────────────────────────────────────────────────────────────────────
   {
     path: '*',
     element: <Navigate to="/" replace />,
