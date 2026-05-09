@@ -17,7 +17,24 @@ class Settings(BaseSettings):
     ESCAVADOR_API_KEY: str = ""  # TODO: preencher quando for integrar
     ESCAVADOR_BASE_URL: str = "https://api.escavador.com/api/v2"
 
-    FRONT_URL: str = "http://localhost:5173"
+    FRONT_URL: str = "http://localhost:3000"
+
+    def cors_origins(self) -> list[str]:
+        raw_values = [origin.strip() for origin in self.FRONT_URL.split(",") if origin.strip()]
+
+        defaults = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+
+        origins = raw_values + defaults
+        unique: list[str] = []
+        for origin in origins:
+            if origin not in unique:
+                unique.append(origin)
+        return unique
 
 
 settings = Settings()

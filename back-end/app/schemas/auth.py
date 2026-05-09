@@ -10,16 +10,7 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=5, max_length=120)
     email: EmailStr
-    oab: str = Field(min_length=6, max_length=30)
-    password: str = Field(min_length=8, max_length=72)
-
-    @field_validator("oab")
-    @classmethod
-    def validate_oab(cls, value: str) -> str:
-        normalized = re.sub(r"\s+", " ", value.strip().upper())
-        if not re.fullmatch(r"[A-Z]{2}\s?\d{4,6}", normalized):
-            raise ValueError("OAB inválida. Use o formato UF 123456.")
-        return normalized.replace(" ", "")
+    password: str = Field(min_length=8, max_length=128)
 
     @field_validator("password")
     @classmethod

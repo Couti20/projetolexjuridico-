@@ -156,7 +156,7 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">Acesso autorizado!</h2>
                   <p className="text-slate-500 max-w-xs">
-                    Redirecionando para a configuração...
+                    Redirecionando para a configuração inicial...
                   </p>
                 </div>
                 <div className="h-1 w-48 bg-slate-100 rounded-full overflow-hidden">

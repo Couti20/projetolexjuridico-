@@ -14,7 +14,6 @@ import { ApiError } from '../services/api';
 const INITIAL_FORM: SignUpFormData = {
   fullName: '',
   email: '',
-  oab: '',
   password: '',
   confirmPassword: '',
   acceptedTerms: false,
@@ -26,6 +25,7 @@ function validateEmail(email: string): boolean {
 
 function validatePassword(password: string): string | undefined {
   if (password.length < 8) return 'Mínimo de 8 caracteres.';
+  if (password.length > 128) return 'Use no máximo 128 caracteres.';
   if (!/[A-Z]/.test(password)) return 'Inclua 1 letra maiúscula.';
   if (!/[a-z]/.test(password)) return 'Inclua 1 letra minúscula.';
   if (!/[0-9]/.test(password)) return 'Inclua 1 número.';
@@ -42,10 +42,6 @@ function validateForm(data: SignUpFormData): SignUpFormErrors {
 
   if (!validateEmail(data.email)) {
     errors.email = 'Informe um e-mail válido.';
-  }
-
-  if (!data.oab.trim() || !/^[A-Za-z]{2}\s?\d{4,6}$/.test(data.oab.trim())) {
-    errors.oab = 'Informe a OAB no formato UF 123456.';
   }
 
   const passwordError = validatePassword(data.password);
@@ -101,10 +97,6 @@ export function useSignUpForm() {
         nextErrors.email = undefined;
       }
 
-      if (field === 'oab' && nextErrors.oab) {
-        nextErrors.oab = undefined;
-      }
-
       return nextErrors;
     },
     [],
@@ -138,7 +130,6 @@ export function useSignUpForm() {
         await authService.register({
           fullName: form.fullName,
           email: form.email,
-          oab: form.oab,
           password: form.password,
         });
         setStatus('success');
@@ -146,6 +137,22 @@ export function useSignUpForm() {
         setStatus('error');
         if (error instanceof ApiError && error.code === 'email_in_use') {
           setServerError('Este e-mail já está cadastrado. Faça login para continuar.');
+          return;
+        }
+        if (error instanceof ApiError && error.code === 'validation_error') {
+          setServerError(error.message);
+          return;
+        }
+        if (error instanceof ApiError && error.code === 'service_unavailable') {
+          setServerError('Back-end indisponível no momento. Verifique se a API está ativa.');
+          return;
+        }
+        if (error instanceof TypeError) {
+          setServerError('Falha de conexão com a API. Verifique VITE_API_URL e CORS no back-end.');
+          return;
+        }
+        if (error instanceof ApiError) {
+          setServerError(`${error.message} (HTTP ${error.status})`);
           return;
         }
         setServerError('Não foi possível criar sua conta. Tente novamente.');

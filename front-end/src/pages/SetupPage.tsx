@@ -12,7 +12,7 @@ import { IMaskInput } from 'react-imask';
 import { Scale, CheckCircle2, Loader2, AlertCircle, Monitor, Brain, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSetupForm } from '../hooks/useSetupForm';
-import { InputField } from '../ui/InputField';
+import { useAuth } from '../hooks/useAuth';
 
 const BENEFITS = [
   { icon: Monitor, text: 'Monitoramento 24h nos tribunais (e-SAJ, PJe)' },
@@ -21,11 +21,11 @@ const BENEFITS = [
 ];
 
 interface SetupPageProps {
-  onSkip: () => void;
   onNavigateDashboard: () => void;
 }
 
-export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
+export function SetupPage({ onNavigateDashboard }: SetupPageProps) {
+  const { completeSetup } = useAuth();
   const {
     control,
     formState: { errors },
@@ -37,6 +37,7 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
     validateOabOnline,
     handleSubmit,
     maskOab,
+    getValues,
   } = useSetupForm();
 
   const isValidatingOab = oabStatus === 'validating-oab';
@@ -44,11 +45,13 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
 
   useEffect(() => {
     if (!isSuccess) return;
+    const oab = getValues('oab');
+    completeSetup(oab);
     const timeoutId = window.setTimeout(() => {
       onNavigateDashboard();
     }, 1600);
     return () => window.clearTimeout(timeoutId);
-  }, [isSuccess, onNavigateDashboard]);
+  }, [completeSetup, getValues, isSuccess, onNavigateDashboard]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
@@ -282,15 +285,6 @@ export function SetupPage({ onSkip, onNavigateDashboard }: SetupPageProps) {
                   </button>
                 </form>
 
-                <div className="mt-5 text-center">
-                  <button
-                    type="button"
-                    onClick={onSkip}
-                    className="text-sm text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    Pular por enquanto e configurar depois
-                  </button>
-                </div>
               </motion.div>
             )}
           </AnimatePresence>

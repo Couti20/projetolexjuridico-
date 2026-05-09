@@ -1,3 +1,4 @@
+import type { AuthUser } from '../types/auth';
 import { ApiError, api, clearAuthToken } from './api';
 
 export interface LoginPayload {
@@ -14,7 +15,6 @@ export interface LoginResponse {
 export interface RegisterPayload {
   fullName: string;
   email: string;
-  oab: string;
   password: string;
 }
 
@@ -35,6 +35,10 @@ function isValidLoginResponse(value: unknown): value is LoginResponse {
 }
 
 function getApiBaseUrl() {
+  if (import.meta.env.DEV) {
+    return '';
+  }
+
   const url = import.meta.env.VITE_API_URL;
   if (!url) {
     throw new ApiError(500, 'VITE_API_URL não configurada no front-end.', 'api_url_missing');
@@ -110,12 +114,11 @@ export const authService = {
   async register(payload: RegisterPayload): Promise<LoginResponse> {
     const normalizedEmail = payload.email.trim().toLowerCase();
     return fetchAuthEndpoint<
-      { full_name: string; email: string; oab: string; password: string },
+      { full_name: string; email: string; password: string },
       LoginResponse
     >('/auth/register', {
       full_name: payload.fullName.trim(),
       email: normalizedEmail,
-      oab: payload.oab.trim().toUpperCase(),
       password: payload.password,
     });
   },

@@ -53,9 +53,11 @@ export const router = createBrowserRouter([
   {
     path: '/configuracao',
     element: (
-      <Lazy>
-        <SetupPage onSkip={() => { window.location.href = '/dashboard'; }} onNavigateDashboard={() => { window.location.href = '/dashboard'; }} />
-      </Lazy>
+      <PrivateRoute requireSetup={false}>
+        <Lazy>
+          <SetupPage onNavigateDashboard={() => { window.location.href = '/dashboard'; }} />
+        </Lazy>
+      </PrivateRoute>
     ),
   },
 

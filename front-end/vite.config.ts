@@ -13,6 +13,24 @@ export default defineConfig(() => {
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
+      proxy: {
+        '/auth': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+        '/processes': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+        '/tasks': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+        '/health': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
+      },
     },
   };
 });

@@ -14,10 +14,12 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 horas em milissegundos
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isSetupCompleted: boolean;
   session: AuthSession | null;
   login: (user: AuthUser) => void;
   logout: () => void;
   updateUser: (partialUser: Partial<AuthUser>) => void;
+  completeSetup: (oab?: string) => void;
 }
 
 function readStoredSession(): AuthSession | null {
@@ -56,6 +58,10 @@ function readStoredSession(): AuthSession | null {
         oab: typeof user.oab === 'string' ? user.oab : undefined,
       },
       authenticatedAt,
+      setupCompleted:
+        typeof candidate.setupCompleted === 'boolean'
+          ? candidate.setupCompleted
+          : Boolean(typeof user.oab === 'string' && user.oab.trim()),
     };
   } catch (error) {
     console.error('Nao foi possivel restaurar a sessao local.', error);
@@ -90,6 +96,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const nextSession: AuthSession = {
       user,
       authenticatedAt: Date.now(),
+      setupCompleted: Boolean(user.oab?.trim()),
     };
     setSession(nextSession);
     storeSession(nextSession);
@@ -111,6 +118,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
           ...prev.user,
           ...partialUser,
         },
+        setupCompleted:
+          prev.setupCompleted || Boolean((partialUser.oab ?? prev.user.oab)?.trim()),
+      };
+
+      storeSession(nextSession);
+      return nextSession;
+    });
+  }, []);
+
+  const completeSetup = useCallback((oab?: string) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+
+      const nextSession: AuthSession = {
+        ...prev,
+        user: {
+          ...prev.user,
+          oab: oab?.trim() || prev.user.oab,
+        },
+        setupCompleted: true,
       };
 
       storeSession(nextSession);
@@ -122,12 +149,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     () => ({
       user: safeSession?.user ?? null,
       isAuthenticated: Boolean(safeSession?.user),
+      isSetupCompleted: Boolean(safeSession?.setupCompleted),
       session: safeSession,
       login,
       logout,
       updateUser,
+      completeSetup,
     }),
-    [login, logout, safeSession, updateUser],
+    [completeSetup, login, logout, safeSession, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.config import settings
 from app.database import get_db, engine
@@ -40,20 +41,46 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             detail="Banco de dados indisponível. Tente novamente em instantes.",
         )
 
-    existing = get_user_by_email(db, payload.email)
+    try:
+        existing = get_user_by_email(db, payload.email)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Falha ao consultar o banco de dados. Verifique se as tabelas foram criadas.",
+        )
+
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Já existe uma conta com este e-mail.",
         )
 
-    user = create_user(
-        db=db,
-        full_name=payload.full_name,
-        email=payload.email,
-        oab=payload.oab,
-        plain_password=payload.password,
-    )
+    try:
+        user = create_user(
+            db=db,
+            full_name=payload.full_name,
+            email=payload.email,
+            plain_password=payload.password,
+            oab="",
+        )
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Já existe uma conta com este e-mail.",
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Falha ao gravar usuário no banco. Verifique estrutura da tabela users.",
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        )
 
     auth_user = to_auth_user(user)
     token = create_access_token({"sub": auth_user.id, "email": auth_user.email})
@@ -81,7 +108,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
             detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
         )
 
-    user = get_user_by_email(db, payload.email)
+    try:
+        user = get_user_by_email(db, payload.email)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Falha ao consultar usuários no banco. Verifique conexão e migrações.",
+        )
 
     if not user:
         raise HTTPException(

@@ -188,18 +188,6 @@ export function SignUpPage({ onNavigateHome, onNavigateLogin }: SignUpPageProps)
                     disabled={isLoading}
                   />
 
-                  <InputField
-                    id="oab"
-                    label="OAB"
-                    type="text"
-                    autoComplete="off"
-                    placeholder="SP 123456"
-                    value={form.oab}
-                    onChange={(e) => updateField('oab', e.target.value.toUpperCase())}
-                    error={errors.oab}
-                    disabled={isLoading}
-                  />
-
                   <PasswordInput
                     id="password"
                     label="Crie uma Senha"
