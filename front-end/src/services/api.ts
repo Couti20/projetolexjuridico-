@@ -1,15 +1,10 @@
 /**
  * api.ts — Camada de HTTP centralizada.
  *
- * Em desenvolvimento: usa mockRequest (sem servidor real).
- * Em produção: usa fetch nativo com interceptor JWT automático.
- *
+ * Sempre usa o backend real (fetchWithAuth).
  * O token JWT é lido do localStorage (chave: lex-auth-token).
  * Se o backend retornar 401, a sessão é invalidada e o user é
  * redirecionado para /login.
- *
- * TODO: quando o back-end estiver pronto, remover o bloco mockRequest
- * e ativar apenas o fetchWithAuth abaixo.
  */
 
 export class ApiError extends Error {
@@ -24,7 +19,7 @@ export class ApiError extends Error {
   }
 }
 
-// ── JWT helpers ───────────────────────────────────────────────────────────────
+// ── JWT helpers ───────────────────────────────────────────────────────────────────
 const TOKEN_KEY = 'lex-auth-token';
 
 export function getAuthToken(): string | null {
@@ -39,7 +34,7 @@ export function clearAuthToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
-// ── Interceptor de fetch com JWT ──────────────────────────────────────────────
+// ── Interceptor de fetch com JWT ────────────────────────────────────────────
 async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
   const baseUrl = import.meta.env.VITE_API_URL ?? '';
@@ -60,16 +55,19 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
 
   if (response.status === 401) {
     clearAuthToken();
-    // Redireciona para login sem depender de React Router
     window.location.href = '/login';
     throw new ApiError(401, 'Sessão expirada. Faça login novamente.', 'unauthorized');
   }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const detail =
+      typeof body.detail === 'string' ? body.detail :
+      typeof body.message === 'string' ? body.message :
+      'Erro inesperado.';
     throw new ApiError(
       response.status,
-      typeof body.message === 'string' ? body.message : 'Erro inesperado.',
+      detail,
       typeof body.code === 'string' ? body.code : undefined,
     );
   }
@@ -77,71 +75,67 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
   return response.json() as Promise<T>;
 }
 
-// ── Mock (desenvolvimento sem backend) ───────────────────────────────────────
-interface MockRequestOptions {
+// ── Helpers de delay (usados em animações de loading opcionais) ─────────────
+interface RequestOptions {
   minDelayMs?: number;
   maxDelayMs?: number;
-  failWhenOffline?: boolean;
-}
-
-function getDelayMs(options?: MockRequestOptions): number {
-  const min = options?.minDelayMs ?? 180;
-  const max = options?.maxDelayMs ?? 540;
-  if (max <= min) return min;
-  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 function wait(ms: number) {
   return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
 
-async function mockRequest<T>(
-  resolver: () => T | Promise<T>,
-  options?: MockRequestOptions,
-): Promise<T> {
-  if (options?.failWhenOffline !== false && typeof navigator !== 'undefined' && !navigator.onLine) {
-    throw new ApiError(0, 'Sem conexão com a internet.', 'offline');
+async function withOptionalDelay<T>(fn: () => Promise<T>, options?: RequestOptions): Promise<T> {
+  const min = options?.minDelayMs ?? 0;
+  const max = options?.maxDelayMs ?? 0;
+  if (max > 0 && max > min) {
+    const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+    await wait(delay);
   }
-  await wait(getDelayMs(options));
-  return resolver();
+  return fn();
 }
 
-// ── Interface pública ─────────────────────────────────────────────────────────
-const IS_MOCK = import.meta.env.DEV;
-
+// ── Interface pública ─────────────────────────────────────────────────────────────
 export const api = {
   get<T>(
     path: string,
-    resolver: () => T | Promise<T>,
-    options?: MockRequestOptions,
+    _resolver?: () => T | Promise<T>,  // mantido por compatibilidade, ignorado
+    options?: RequestOptions,
   ) {
-    if (IS_MOCK) return mockRequest(resolver, options);
-    return fetchWithAuth<T>(path);
+    return withOptionalDelay(() => fetchWithAuth<T>(path), options);
   },
 
   post<TBody, TResponse>(
     path: string,
     body: TBody,
-    resolver: (body: TBody) => TResponse | Promise<TResponse>,
-    options?: MockRequestOptions,
+    _resolver?: (body: TBody) => TResponse | Promise<TResponse>,
+    options?: RequestOptions,
   ) {
-    if (IS_MOCK) return mockRequest(() => resolver(body), options);
-    return fetchWithAuth<TResponse>(path, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
+    return withOptionalDelay(
+      () => fetchWithAuth<TResponse>(path, { method: 'POST', body: JSON.stringify(body) }),
+      options,
+    );
   },
 
   put<TBody, TResponse>(
     path: string,
     body: TBody,
-    resolver: (body: TBody) => TResponse | Promise<TResponse>,
-    options?: MockRequestOptions,
+    _resolver?: (body: TBody) => TResponse | Promise<TResponse>,
+    options?: RequestOptions,
   ) {
-    if (IS_MOCK) return mockRequest(() => resolver(body), options);
-    return fetchWithAuth<TResponse>(path, {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    });
+    return withOptionalDelay(
+      () => fetchWithAuth<TResponse>(path, { method: 'PUT', body: JSON.stringify(body) }),
+      options,
+    );
+  },
+
+  delete<TResponse>(
+    path: string,
+    options?: RequestOptions,
+  ) {
+    return withOptionalDelay(
+      () => fetchWithAuth<TResponse>(path, { method: 'DELETE' }),
+      options,
+    );
   },
 };
