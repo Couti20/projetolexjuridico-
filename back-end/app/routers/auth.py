@@ -1,13 +1,26 @@
+"""Router de autenticação — cadastro, login e logout.
+
+Melhorias de segurança:
+- Logout real: jti do token é inserido na blacklist do banco.
+- Rate limiting via SlowAPI: 5 tentativas/min no login, 3/min no register.
+- Todos os erros de autenticação retornam a mesma mensagem genérica
+  para não vazar se o e-mail existe ou não (user enumeration prevention).
+"""
+from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from jose import jwt
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db, engine
 from app.dependencies import create_access_token, get_current_user
+from app.models.token_blacklist import TokenBlacklist
 from app.schemas.auth import AuthUser, LoginRequest, LoginResponse, RegisterRequest
 from app.services.user_service import (
     create_user,
@@ -17,7 +30,10 @@ from app.services.user_service import (
 )
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _banco_acessivel() -> bool:
     """Verifica se o banco MySQL está online e acessível."""
@@ -29,11 +45,31 @@ def _banco_acessivel() -> bool:
         return False
 
 
+def _decode_jti(token: str) -> tuple[str | None, datetime | None]:
+    """Extrai jti e exp do JWT sem validar assinatura (token já foi validado antes)."""
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+        )
+        jti = payload.get("jti")
+        exp_ts = payload.get("exp")
+        expires_at = datetime.fromtimestamp(exp_ts, tz=timezone.utc) if exp_ts else None
+        return jti, expires_at
+    except Exception:
+        return None, None
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
 @router.post("/register", response_model=LoginResponse, status_code=201)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_REGISTER)
+def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
     """
     Cadastra novo advogado.
     Retorna JWT já autenticado (login automático após cadastro).
+    Rate limit: 3 cadastros por minuto por IP.
     """
     if not _banco_acessivel():
         raise HTTPException(
@@ -61,7 +97,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             full_name=payload.full_name,
             email=payload.email,
             plain_password=payload.password,
-            oab="",
+            oab=getattr(payload, "oab", ""),
         )
     except IntegrityError:
         db.rollback()
@@ -93,14 +129,15 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_LOGIN)
+def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
     """
     Autentica o advogado.
+    Rate limit: 5 tentativas por minuto por IP (proteção brute force).
 
-    Regra de segurança:
-    - Se o banco MySQL está online  → só aceita usuários cadastrados.
-    - Se o banco está offline (ex: XAMPP desligado) → bloqueia tudo, sem exceção.
-    - Mock foi completamente removido.
+    Segurança:
+    - Mensagem de erro genérica (não revela se o e-mail existe).
+    - Banco offline bloqueia tudo, sem exceção.
     """
     if not _banco_acessivel():
         raise HTTPException(
@@ -116,17 +153,18 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
             detail="Falha ao consultar usuários no banco. Verifique conexão e migrações.",
         )
 
+    # Mensagem genérica: não revela se o e-mail existe (user enumeration prevention)
+    invalid_credentials = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="E-mail ou senha incorretos.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="E-mail ou senha incorretos.",
-        )
+        raise invalid_credentials
 
     if not verify_password(payload.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="E-mail ou senha incorretos.",
-        )
+        raise invalid_credentials
 
     if not user.is_active:
         raise HTTPException(
@@ -144,6 +182,32 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/logout")
-def logout(current_user: Annotated[dict, Depends(get_current_user)]):
-    return {"ok": True}
+@router.post("/logout", status_code=200)
+def logout(
+    request: Request,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Invalida o token JWT atual inserindo o jti na blacklist.
+    A partir desse momento, o token é rejeitado em qualquer endpoint protegido.
+    """
+    # Extrai o token do header Authorization
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.removeprefix("Bearer ").strip()
+
+    jti, expires_at = _decode_jti(token)
+
+    if jti and expires_at:
+        already_revoked = db.get(TokenBlacklist, jti)
+        if not already_revoked:
+            entry = TokenBlacklist(
+                jti=jti,
+                user_id=current_user["id"],
+                expires_at=expires_at,
+                revoked_at=datetime.now(timezone.utc),
+            )
+            db.add(entry)
+            db.commit()
+
+    return {"ok": True, "message": "Logout realizado com sucesso."}

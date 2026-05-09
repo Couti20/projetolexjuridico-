@@ -9,15 +9,20 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
-    # MySQL via XAMPP (PyMySQL — sem precisar compilar nada)
-    # Formato: mysql+pymysql://usuario:senha@host:porta/banco
+    # MySQL via XAMPP (PyMySQL)
     DATABASE_URL: str = "mysql+pymysql://root:@localhost:3306/lex_db"
 
-    # API Escavador — será usada na próxima fase
-    ESCAVADOR_API_KEY: str = ""  # TODO: preencher quando for integrar
+    # API Escavador
+    ESCAVADOR_API_KEY: str = ""
     ESCAVADOR_BASE_URL: str = "https://api.escavador.com/api/v2"
 
+    # CORS
     FRONT_URL: str = "http://localhost:3000"
+
+    # Rate limiting (formato SlowAPI: "N/period")
+    # Exemplos: "5/minute", "100/hour", "1000/day"
+    RATE_LIMIT_LOGIN: str = "5/minute"
+    RATE_LIMIT_REGISTER: str = "3/minute"
 
     def cors_origins(self) -> list[str]:
         raw_values = [origin.strip() for origin in self.FRONT_URL.split(",") if origin.strip()]

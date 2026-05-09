@@ -1,25 +1,54 @@
-from fastapi import FastAPI
+"""Ponto de entrada da Lex API.
+
+Ordem de registro dos middlewares (LIFO — último registrado, primeiro executado):
+1. SecurityHeadersMiddleware  → adiciona headers de segurança em TODAS as respostas
+2. CORSMiddleware             → trata preflight e valida origens
+3. SlowAPI state              → disponibiliza o limiter para os routers
+"""
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from app.config import settings
+from app.middleware import SecurityHeadersMiddleware
 from app.routers import auth, processes, dashboard, tasks
+
+# ── SlowAPI (rate limiting global) ────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="Lex API",
     description="Back-end do Lex — SaaS jurídico para advogados solo.",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.APP_ENV != "production" else None,
+    redoc_url="/redoc" if settings.APP_ENV != "production" else None,
 )
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+# ── Estado do rate limiter ────────────────────────────────────────────────────
+app.state.limiter = limiter
+app.add_exception_handler(
+    RateLimitExceeded,
+    lambda request, exc: JSONResponse(
+        status_code=429,
+        content={
+            "detail": "Muitas tentativas. Aguarde um momento e tente novamente."
+        },
+    ),
+)
+
+# ── Middlewares (ordem importa: último adicionado = primeiro executado) ───────
+app.add_middleware(SecurityHeadersMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins(),
     allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID"],
 )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
@@ -31,4 +60,4 @@ app.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
 
 @app.get("/health", tags=["Health"])
 def health_check():
-    return {"status": "ok", "app": "lex-api"}
+    return {"status": "ok", "app": "lex-api", "env": settings.APP_ENV}
