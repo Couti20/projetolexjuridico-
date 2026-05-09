@@ -16,6 +16,7 @@ export interface RegisterPayload {
   fullName: string;
   email: string;
   password: string;
+  oab?: string; // opcional no cadastro inicial
 }
 
 function isValidLoginResponse(value: unknown): value is LoginResponse {
@@ -78,6 +79,7 @@ async function fetchAuthEndpoint<TBody extends Record<string, unknown>, TRespons
       response.status === 401 ? 'invalid_credentials'
       : response.status === 409 ? 'email_in_use'
       : response.status === 422 ? 'validation_error'
+      : response.status === 429 ? 'rate_limited'
       : response.status === 503 ? 'service_unavailable'
       : 'request_failed';
 
@@ -114,12 +116,13 @@ export const authService = {
   async register(payload: RegisterPayload): Promise<LoginResponse> {
     const normalizedEmail = payload.email.trim().toLowerCase();
     return fetchAuthEndpoint<
-      { full_name: string; email: string; password: string },
+      { full_name: string; email: string; password: string; oab: string },
       LoginResponse
     >('/auth/register', {
       full_name: payload.fullName.trim(),
       email: normalizedEmail,
       password: payload.password,
+      oab: payload.oab?.trim().toUpperCase() ?? '',
     });
   },
 

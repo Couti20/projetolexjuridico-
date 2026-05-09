@@ -5,16 +5,16 @@ Ordem de registro dos middlewares (LIFO — último registrado, primeiro executa
 2. CORSMiddleware             → trata preflight e valida origens
 3. SlowAPI state              → disponibiliza o limiter para os routers
 """
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.middleware import SecurityHeadersMiddleware
-from app.routers import auth, processes, dashboard, tasks
+from app.routers import auth, processes, dashboard, tasks, users
 
 # ── SlowAPI (rate limiting global) ────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
@@ -52,10 +52,11 @@ app.add_middleware(
 )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(auth.router,      prefix="/auth",      tags=["Auth"])
+app.include_router(users.router,     prefix="/users",     tags=["Users"])
 app.include_router(processes.router, prefix="/processes", tags=["Processes"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
-app.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
+app.include_router(tasks.router,     prefix="/tasks",     tags=["Tasks"])
 
 
 @app.get("/health", tags=["Health"])

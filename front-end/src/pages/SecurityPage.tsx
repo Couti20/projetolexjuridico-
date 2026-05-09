@@ -2,8 +2,9 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, KeyRound, Laptop, LogOut, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { AppLayout } from '../layouts/AppLayout';
 import { PasswordInput } from '../ui/PasswordInput';
+import { userService } from '../services/userService';
 
-type SaveStatus = 'idle' | 'saving' | 'saved';
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 type DangerStatus = 'idle' | 'submitting' | 'requested';
 
 interface PasswordFormData {
@@ -16,6 +17,7 @@ interface PasswordFormErrors {
   currentPassword?: string;
   newPassword?: string;
   confirmPassword?: string;
+  general?: string;
 }
 
 interface SessionItem {
@@ -50,6 +52,8 @@ function validatePasswordForm(data: PasswordFormData): PasswordFormErrors {
     errors.newPassword = 'Inclua ao menos 1 letra maiúscula.';
   } else if (!/[0-9]/.test(data.newPassword)) {
     errors.newPassword = 'Inclua ao menos 1 número.';
+  } else if (!/[^A-Za-z0-9]/.test(data.newPassword)) {
+    errors.newPassword = 'Inclua ao menos 1 caractere especial.';
   }
 
   if (!data.confirmPassword) {
@@ -83,7 +87,7 @@ export function SecurityPage() {
 
   function updatePasswordField<K extends keyof PasswordFormData>(field: K, value: PasswordFormData[K]) {
     setPasswordForm((prev) => ({ ...prev, [field]: value }));
-    setPasswordErrors((prev) => ({ ...prev, [field]: undefined }));
+    setPasswordErrors((prev) => ({ ...prev, [field]: undefined, general: undefined }));
   }
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
@@ -96,13 +100,35 @@ export function SecurityPage() {
     }
 
     setSaveStatus('saving');
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    setSaveStatus('saved');
-    setPasswordForm(INITIAL_PASSWORD_FORM);
+    setPasswordErrors({});
 
-    window.setTimeout(() => {
-      setSaveStatus('idle');
-    }, 2200);
+    try {
+      await userService.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      setSaveStatus('saved');
+      setPasswordForm(INITIAL_PASSWORD_FORM);
+
+      window.setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err: unknown) {
+      setSaveStatus('error');
+
+      const message =
+        err instanceof Error ? err.message : 'Erro ao atualizar senha. Tente novamente.';
+
+      // Mapeia erros específicos para o campo correto
+      if (message.toLowerCase().includes('atual')) {
+        setPasswordErrors({ currentPassword: 'Senha atual incorreta.' });
+      } else if (message.toLowerCase().includes('igual')) {
+        setPasswordErrors({ newPassword: 'A nova senha não pode ser igual à atual.' });
+      } else {
+        setPasswordErrors({ general: message });
+      }
+
+      window.setTimeout(() => setSaveStatus('idle'), 3000);
+    }
   }
 
   function handleCloseOtherSessions() {
@@ -154,7 +180,7 @@ export function SecurityPage() {
                 value={passwordForm.newPassword}
                 onChange={(event) => updatePasswordField('newPassword', event.target.value)}
                 error={passwordErrors.newPassword}
-                placeholder="Mínimo 8 caracteres, 1 maiúscula e 1 número"
+                placeholder="Mínimo 8 caracteres, maiúscula, número e especial"
               />
               <PasswordInput
                 id="confirmPassword"
@@ -165,6 +191,10 @@ export function SecurityPage() {
                 error={passwordErrors.confirmPassword}
                 placeholder="Repita a nova senha"
               />
+
+              {passwordErrors.general && (
+                <p className="text-sm text-red-600">{passwordErrors.general}</p>
+              )}
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
                 <div className="min-h-5">

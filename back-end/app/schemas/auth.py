@@ -11,6 +11,7 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=5, max_length=120)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    oab: str = Field(default="", max_length=30, description="Número OAB (opcional no cadastro inicial)")
 
     @field_validator("password")
     @classmethod
@@ -24,6 +25,12 @@ class RegisterRequest(BaseModel):
         if not re.search(r"[^A-Za-z0-9]", value):
             raise ValueError("A senha deve conter ao menos 1 caractere especial.")
         return value
+
+    @field_validator("oab")
+    @classmethod
+    def normalize_oab(cls, value: str) -> str:
+        """Normaliza OAB: remove espaços e converte para maiúsculas."""
+        return value.strip().upper().replace(" ", "")
 
 
 class AuthUser(BaseModel):
