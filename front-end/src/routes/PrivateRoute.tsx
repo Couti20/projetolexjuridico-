@@ -8,14 +8,15 @@ interface PrivateRouteProps {
 }
 
 export function PrivateRoute({ children, requireSetup = true }: PrivateRouteProps) {
-  const { isAuthenticated, isSetupCompleted } = useAuth();
+  const { isAuthenticated, isSetupCompleted, user } = useAuth();
   const location = useLocation();
+  const isAdmin = Boolean(user?.isAdmin);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
 
-  if (requireSetup && !isSetupCompleted) {
+  if (requireSetup && !isAdmin && !isSetupCompleted) {
     return <Navigate to="/configuracao" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
 

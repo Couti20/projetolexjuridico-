@@ -1,4 +1,5 @@
 import { api } from './api';
+import { isAdminToken } from './adminAuth';
 
 export type ProcessStatus = 'critico' | 'atencao' | 'normal';
 
@@ -294,14 +295,29 @@ const DATASET: ProcessDataset = {
 
 export const processService = {
   async listProcesses(): Promise<ProcessItem[]> {
+    const token = window.localStorage.getItem('lex-auth-token');
+    if (isAdminToken(token)) {
+      return cloneData(DATASET.processes);
+    }
+
     return api.get('/processes', () => cloneData(DATASET.processes));
   },
 
   async listMovementsMap(): Promise<Record<string, ProcessMovement[]>> {
+    const token = window.localStorage.getItem('lex-auth-token');
+    if (isAdminToken(token)) {
+      return cloneData(DATASET.movementsByProcess);
+    }
+
     return api.get('/processes/movements', () => cloneData(DATASET.movementsByProcess));
   },
 
   async listChecklistMap(): Promise<Record<string, string[]>> {
+    const token = window.localStorage.getItem('lex-auth-token');
+    if (isAdminToken(token)) {
+      return cloneData(DATASET.checklistByProcess);
+    }
+
     return api.get('/processes/checklist', () => cloneData(DATASET.checklistByProcess));
   },
 };

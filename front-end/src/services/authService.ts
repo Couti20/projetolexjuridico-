@@ -1,5 +1,6 @@
 import type { AuthUser } from '../types/auth';
 import { ApiError, api, clearAuthToken } from './api';
+import { ADMIN_ACCESS_TOKEN, getAdminUser, isAdminLogin, isAdminToken } from './adminAuth';
 
 export interface LoginPayload {
   email: string;
@@ -92,6 +93,14 @@ async function fetchAuthEndpoint<TBody extends Record<string, unknown>, TRespons
 export const authService = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
     const normalizedEmail = payload.email.trim().toLowerCase();
+    if (isAdminLogin(normalizedEmail, payload.password)) {
+      return {
+        user: getAdminUser(),
+        accessToken: ADMIN_ACCESS_TOKEN,
+        expiresIn: 86_400,
+      };
+    }
+
     const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
     const isValidPassword = typeof payload.password === 'string' && payload.password.length >= 6;
 
@@ -129,6 +138,10 @@ export const authService = {
   async logout(): Promise<void> {
     const token = window.localStorage.getItem('lex-auth-token') ?? undefined;
     try {
+      if (isAdminToken(token)) {
+        return;
+      }
+
       if (token) {
         await fetchAuthEndpoint('/auth/logout', {}, token);
       } else {

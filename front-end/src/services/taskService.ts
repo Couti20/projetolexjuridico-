@@ -1,4 +1,5 @@
 import { api } from './api';
+import { isAdminToken } from './adminAuth';
 
 export type TaskStatus = 'pending' | 'done';
 export type TaskPriority = 'critica' | 'alta' | 'normal';
@@ -93,6 +94,11 @@ function isValidTask(candidate: unknown): candidate is DayTask {
 
 export const taskService = {
   async listDailyTasks(): Promise<DayTask[]> {
+    const token = window.localStorage.getItem('lex-auth-token');
+    if (isAdminToken(token)) {
+      return cloneData(DEFAULT_DAILY_TASKS);
+    }
+
     return api.get('/tasks/daily', () => cloneData(DEFAULT_DAILY_TASKS));
   },
 
