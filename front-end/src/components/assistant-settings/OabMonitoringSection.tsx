@@ -1,107 +1,88 @@
-import { Plus, ShieldAlert, Trash2 } from 'lucide-react';
+/**
+ * OabMonitoringSection — exibe a OAB única do usuário autenticado.
+ *
+ * A OAB não pode ser alterada aqui; ela vem do perfil do usuário (AuthContext).
+ * Para atualizar a OAB o usuário deve ir em Configurações > Perfil.
+ */
+
+import { ShieldCheck, ShieldAlert } from 'lucide-react';
 import type { OabEntry } from './types';
 
-interface OabFeedback {
-  type: 'error' | 'success';
-  text: string;
-}
-
 interface OabMonitoringSectionProps {
-  oabs: OabEntry[];
-  oabInput: string;
-  oabFeedback: OabFeedback | null;
-  onOabInputChange: (value: string) => void;
-  onAddOab: () => void;
-  onRemoveOab: (id: string) => void;
+  /** OAB do usuário autenticado, já formatada (ex: OAB/SP 123.456) */
+  userOab: string | undefined;
   formatOab: (oab: OabEntry) => string;
 }
 
 export function OabMonitoringSection({
-  oabs,
-  oabInput,
-  oabFeedback,
-  onOabInputChange,
-  onAddOab,
-  onRemoveOab,
-  formatOab,
+  userOab,
 }: OabMonitoringSectionProps) {
+  const hasOab = Boolean(userOab?.trim());
+
   return (
     <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 sm:p-6">
+      {/* Cabeçalho */}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-slate-900">Monitoramento de OAB</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Adicione uma ou mais OABs para acompanhar movimentacoes sem sair do PrazoAlert.
+            Sua OAB está sendo monitorada automaticamente pelo assistente.
           </p>
         </div>
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
-          <ShieldAlert size={13} />
-          Ativo
+        <span
+          className={[
+            'inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2.5 py-1 border',
+            hasOab
+              ? 'text-blue-700 bg-blue-50 border-blue-200'
+              : 'text-amber-700 bg-amber-50 border-amber-200',
+          ].join(' ')}
+        >
+          {hasOab ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
+          {hasOab ? 'Ativo' : 'Pendente'}
         </span>
       </div>
 
-      <div className="mt-4 space-y-2 max-h-56 overflow-y-auto pr-1">
-        {oabs.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
-            <p className="text-sm font-semibold text-slate-800">Nenhuma OAB em monitoramento.</p>
-            <p className="text-xs text-slate-500 mt-1">Adicione ao menos uma OAB para iniciar os alertas.</p>
+      {/* OAB do usuário */}
+      <div className="mt-4">
+        {hasOab ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+              <ShieldCheck size={18} className="text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-900">{userOab}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Monitoramento diário habilitado</p>
+            </div>
           </div>
         ) : (
-          oabs.map((entry) => (
-            <div
-              key={entry.id}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-between gap-2"
-            >
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{formatOab(entry)}</p>
-                <p className="text-xs text-slate-500">Monitoramento diario habilitado</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onRemoveOab(entry.id)}
-                className="inline-flex items-center gap-1 text-sm font-semibold text-red-600 hover:text-red-700"
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+            <p className="text-sm font-semibold text-slate-800">Nenhuma OAB cadastrada.</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Acesse{' '}
+              <a
+                href="/configuracoes/perfil"
+                className="text-blue-600 hover:underline font-medium"
               >
-                <Trash2 size={14} />
-                Remover
-              </button>
-            </div>
-          ))
+                Configurações &rsaquo; Perfil
+              </a>{' '}
+              para informar sua OAB.
+            </p>
+          </div>
         )}
       </div>
 
-      <div className="mt-3 rounded-xl border border-dashed border-blue-300 bg-blue-50/50 p-3">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="text"
-            value={oabInput}
-            onChange={(event) => onOabInputChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                onAddOab();
-              }
-            }}
-            placeholder="Ex.: OAB/SP 123456 ou OAB/RJ 654321"
-            className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-          />
-          <button
-            type="button"
-            onClick={onAddOab}
-            className="btn-primary inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold"
+      {/* Nota informativa */}
+      {hasOab && (
+        <p className="mt-3 text-xs text-slate-400">
+          Para alterar sua OAB, acesse{' '}
+          <a
+            href="/configuracoes/perfil"
+            className="text-blue-500 hover:underline"
           >
-            <Plus size={14} />
-            Adicionar
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-slate-500">
-          Dica: voce pode colar varias OABs separadas por virgula, ponto e virgula ou quebra de linha.
+            Configurações &rsaquo; Perfil
+          </a>.
         </p>
-        {oabFeedback && (
-          <p className={`mt-2 text-xs font-semibold ${oabFeedback.type === 'error' ? 'text-red-600' : 'text-emerald-700'}`}>
-            {oabFeedback.text}
-          </p>
-        )}
-      </div>
+      )}
     </section>
   );
 }

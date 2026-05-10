@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { processService, type ProcessItem, type ProcessMovement } from '../services/processService';
 
 export type ProcessesLoadState = 'loading' | 'ready' | 'error';
@@ -12,53 +13,33 @@ interface UseProcessesDataResult {
 }
 
 export function useProcessesData(): UseProcessesDataResult {
-  const [processes, setProcesses] = useState<ProcessItem[]>([]);
-  const [movementsByProcess, setMovementsByProcess] = useState<Record<string, ProcessMovement[]>>({});
-  const [checklistByProcess, setChecklistByProcess] = useState<Record<string, string[]>>({});
-  const [loadState, setLoadState] = useState<ProcessesLoadState>('loading');
-  const [reloadKey, setReloadKey] = useState(0);
+  const dataQuery = useQuery({
+    queryKey: ['processes', 'dataset'],
+    queryFn: async () => {
+      const [processes, movementsByProcess, checklistByProcess] = await Promise.all([
+        processService.listProcesses(),
+        processService.listMovementsMap(),
+        processService.listChecklistMap(),
+      ]);
 
-  useEffect(() => {
-    let cancelled = false;
+      return {
+        processes,
+        movementsByProcess,
+        checklistByProcess,
+      };
+    },
+  });
 
-    const loadData = async () => {
-      setLoadState('loading');
-
-      try {
-        const [loadedProcesses, loadedMovements, loadedChecklist] = await Promise.all([
-          processService.listProcesses(),
-          processService.listMovementsMap(),
-          processService.listChecklistMap(),
-        ]);
-
-        if (cancelled) return;
-
-        setProcesses(loadedProcesses);
-        setMovementsByProcess(loadedMovements);
-        setChecklistByProcess(loadedChecklist);
-        setLoadState('ready');
-      } catch (error) {
-        if (cancelled) return;
-        console.error('Não foi possível carregar dados dos processos.', error);
-        setLoadState('error');
-      }
-    };
-
-    loadData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadKey]);
+  const loadState: ProcessesLoadState = dataQuery.isPending ? 'loading' : dataQuery.isError ? 'error' : 'ready';
 
   const reload = useCallback(() => {
-    setReloadKey((prev) => prev + 1);
-  }, []);
+    void dataQuery.refetch();
+  }, [dataQuery.refetch]);
 
   return {
-    processes,
-    movementsByProcess,
-    checklistByProcess,
+    processes: dataQuery.data?.processes ?? [],
+    movementsByProcess: dataQuery.data?.movementsByProcess ?? {},
+    checklistByProcess: dataQuery.data?.checklistByProcess ?? {},
     loadState,
     reload,
   };

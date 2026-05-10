@@ -1,20 +1,13 @@
 /**
- * App.tsx — Roteador Principal
+ * App.tsx — Entry point do roteamento.
  *
- * Componente root que encapsula BrowserRouter e AppRoutes.
- * Toda a lógica de roteamento foi centralizada em routes/index.tsx.
- *
- * Antes: 160+ linhas
- * Depois: ~10 linhas ✅
+ * Usamos `createBrowserRouter` em `src/routes/router.tsx` e montamos
+ * o provedor de rotas aqui com `RouterProvider`.
  */
 
-import { BrowserRouter } from 'react-router-dom';
-import { AppRoutes } from './routes';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './routes/router';
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
-  );
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }

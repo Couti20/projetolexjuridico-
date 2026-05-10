@@ -21,92 +21,95 @@ export const HeroSection = memo(function HeroSection({ onNavigateSignUp, onNavig
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="max-w-2xl"
-          >
-            <div className="badge-soft inline-flex items-center gap-2 mb-6 border border-blue-100/50">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
-              </span>
-              Seu Assistente de Prazos Pessoal
-            </div>
-
+          <div className="max-w-2xl">
+            {/* ─── H1 renderizado instantaneamente (sem animação) para melhorar LCP ─── */}
             <h1 className="text-5xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-slate-900 leading-[1.1] mb-6 lg:pr-12 relative z-30">
               Recupere 1 hora de foco por dia.{' '}
               <span className="text-blue-600">Deixe os tribunais no piloto automático.</span>
             </h1>
 
-            <p className="text-lg text-slate-600 mb-8 leading-relaxed max-w-xl">
-              O Lex não monitora apenas seus prazos 24h por dia. Ele centraliza sua rotina,
-              elimina o tempo perdido em portais lentos e traz organização inteligente para
-              o seu dia a dia via WhatsApp.
-            </p>
-
-            {/* ─── CTAs ────────────────────────────────────────────── */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-10">
-              <button
-                type="button"
-                onClick={onNavigateSignUp}
-                className="btn-primary group inline-flex items-center gap-2 px-7 py-4 text-base font-semibold rounded-xl shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 transition-all"
-              >
-                Teste Grátis por 7 Dias
-                <ArrowRight
-                  size={18}
-                  className="transition-transform duration-200 group-hover:translate-x-1"
-                />
-              </button>
-
-              <button
-                type="button"
-                onClick={onNavigateLogin}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 transition-colors"
-              >
-                Entrar
-              </button>
-            </div>
-            <span className="inline-flex items-center gap-1.5 text-sm text-slate-500 mb-10">
-              <ShieldCheck size={15} className="text-emerald-500" />
-              Sem cartão de crédito
-            </span>
-
-            {/* Social proof */}
-            <div className="flex items-center gap-4 text-sm text-slate-500">
-              <div className="flex -space-x-2">
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64"
-                  alt="Advogada usuária do Lex"
-                  width={32}
-                  height={32}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-8 h-8 rounded-full border-2 border-white object-cover"
-                />
-                <img
-                  src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64"
-                  alt="Advogado usuário do Lex"
-                  width={32}
-                  height={32}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-8 h-8 rounded-full border-2 border-white object-cover"
-                />
-                <img
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64"
-                  alt="Advogada usuária do Lex"
-                  width={32}
-                  height={32}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-8 h-8 rounded-full border-2 border-white object-cover"
-                />
+            {/* ─── Resto do conteúdo com animação ─── */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="badge-soft inline-flex items-center gap-2 mb-6 border border-blue-100/50">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
+                </span>
+                Seu Assistente de Prazos Pessoal
               </div>
-              <p>Junte-se a +2.000 advogados focados</p>
-            </div>
-          </motion.div>
+
+              <p className="text-lg text-slate-600 mb-8 leading-relaxed max-w-xl">
+                O Lex não monitora apenas seus prazos 24h por dia. Ele centraliza sua rotina,
+                elimina o tempo perdido em portais lentos e traz organização inteligente para
+                o seu dia a dia via WhatsApp.
+              </p>
+
+              {/* ─── CTAs ────────────────────────────────────────────── */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-10">
+                <button
+                  type="button"
+                  onClick={onNavigateSignUp}
+                  className="btn-primary group inline-flex items-center gap-2 px-7 py-4 text-base font-semibold rounded-xl shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 transition-all"
+                >
+                  Teste Grátis por 7 Dias
+                  <ArrowRight
+                    size={18}
+                    className="transition-transform duration-200 group-hover:translate-x-1"
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onNavigateLogin}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 transition-colors"
+                >
+                  Entrar
+                </button>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-sm text-slate-500 mb-10">
+                <ShieldCheck size={15} className="text-emerald-500" />
+                Sem cartão de crédito
+              </span>
+
+              {/* Social proof */}
+              <div className="flex items-center gap-4 text-sm text-slate-500">
+                <div className="flex -space-x-2">
+                  <img
+                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64"
+                    alt="Advogada usuária do Lex"
+                    width={32}
+                    height={32}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-8 h-8 rounded-full border-2 border-white object-cover"
+                  />
+                  <img
+                    src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64"
+                    alt="Advogado usuário do Lex"
+                    width={32}
+                    height={32}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-8 h-8 rounded-full border-2 border-white object-cover"
+                  />
+                  <img
+                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64"
+                    alt="Advogada usuária do Lex"
+                    width={32}
+                    height={32}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-8 h-8 rounded-full border-2 border-white object-cover"
+                  />
+                </div>
+                <p>Junte-se a +2.000 advogados focados</p>
+              </div>
+            </motion.div>
+          </div>
 
           {/* ─── Visual direito (dashboard + phone) ─── */}
           <motion.div

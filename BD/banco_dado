@@ -1,0 +1,126 @@
+CREATE DATABASE IF NOT EXISTS lex_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE lex_db;
+
+CREATE TABLE users (
+    id VARCHAR(36) PRIMARY KEY,
+    full_name VARCHAR(120) NOT NULL,
+    email VARCHAR(180) NOT NULL UNIQUE,
+    oab VARCHAR(30) NOT NULL,
+    hashed_password VARCHAR(255) NOT NULL,
+    plan VARCHAR(20) NOT NULL DEFAULT 'light',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE processes (
+    id VARCHAR(60) PRIMARY KEY,
+    number VARCHAR(30) NOT NULL,
+    court VARCHAR(20) NOT NULL,
+    claimant VARCHAR(180) NOT NULL,
+    defendant VARCHAR(180) NOT NULL,
+    district VARCHAR(255) NOT NULL,
+    status VARCHAR(10) NOT NULL DEFAULT 'normal',
+    latest_movement_at VARCHAR(30) NULL,
+    latest_movement_title VARCHAR(255) NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE monitorings (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    process_id VARCHAR(60) NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_id (user_id),
+    INDEX idx_process_id (process_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (process_id) REFERENCES processes(id)
+);
+
+{
+  "full_name": "Michael Coutinho",
+  "email": "michael@lex.com.br",
+  "oab": "OAB/SP 123.456",
+  "password": "minimo6chars"
+}
+
+
+
+
+
+===================================================================
+CREATE DATABASE IF NOT EXISTS lex_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE lex_db;
+
+-- =========================
+-- USERS
+-- =========================
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(36) PRIMARY KEY,
+    full_name VARCHAR(120) NOT NULL,
+    email VARCHAR(180) NOT NULL,
+    oab VARCHAR(30) NOT NULL,
+    hashed_password VARCHAR(255) NOT NULL,
+    plan VARCHAR(20) NOT NULL DEFAULT 'light',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_users_email (email),
+    KEY idx_users_email (email),
+    KEY idx_users_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =========================
+-- PROCESSES
+-- =========================
+CREATE TABLE IF NOT EXISTS processes (
+    id VARCHAR(60) PRIMARY KEY,
+    number VARCHAR(30) NOT NULL,
+    court VARCHAR(20) NOT NULL,
+    claimant VARCHAR(180) NOT NULL,
+    defendant VARCHAR(180) NOT NULL,
+    district VARCHAR(255) NOT NULL,
+    status ENUM('critico', 'atencao', 'normal') NOT NULL DEFAULT 'normal',
+    latest_movement_at DATETIME NULL,
+    latest_movement_title VARCHAR(255) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_processes_number (number),
+    KEY idx_processes_status (status),
+    KEY idx_processes_latest_movement_at (latest_movement_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =========================
+-- MONITORINGS (user <-> process)
+-- =========================
+CREATE TABLE IF NOT EXISTS monitorings (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    process_id VARCHAR(60) NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    -- evita vínculo duplicado do mesmo usuário no mesmo processo
+    UNIQUE KEY uq_monitorings_user_process (user_id, process_id),
+
+    KEY idx_monitorings_user_id (user_id),
+    KEY idx_monitorings_process_id (process_id),
+    KEY idx_monitorings_is_active (is_active),
+
+    CONSTRAINT fk_monitorings_user_cascade
+      FOREIGN KEY (user_id) REFERENCES users(id)
+      ON DELETE CASCADE
+      ON UPDATE CASCADE,
+
+    CONSTRAINT fk_monitorings_process_cascade
+      FOREIGN KEY (process_id) REFERENCES processes(id)
+      ON DELETE CASCADE
+      ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

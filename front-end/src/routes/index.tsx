@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { LandingPage } from '../pages/LandingPage';
+import LandingPage from '../pages/public/LandingPage';
 import { PrivateRoute } from './PrivateRoute';
 
 // Import lazy (secundário, sob demanda)
@@ -91,6 +91,7 @@ export function AppRoutes() {
             onNavigateHome={() => navigate('/')}
             onNavigateSignUp={() => navigate('/cadastro')}
             onNavigateSetup={() => navigate('/configuracao')}
+            onNavigateDashboard={() => navigate('/dashboard')}
           />
         )}
       />
@@ -101,10 +102,7 @@ export function AppRoutes() {
         element={
           <PrivateRoute>
             {withLoader(
-              <SetupPage
-                onSkip={() => navigate('/dashboard')}
-                onNavigateDashboard={() => navigate('/dashboard')}
-              />,
+              <SetupPage onNavigateDashboard={() => navigate('/dashboard')} />,
             )}
           </PrivateRoute>
         }

@@ -8,6 +8,8 @@
 
 import { useState, useCallback, type FormEvent } from 'react';
 import type { SignUpFormData, SignUpFormErrors, SignUpStatus } from '../types/auth';
+import { authService } from '../services/authService';
+import { ApiError } from '../services/api';
 
 const INITIAL_FORM: SignUpFormData = {
   fullName: '',
@@ -23,8 +25,11 @@ function validateEmail(email: string): boolean {
 
 function validatePassword(password: string): string | undefined {
   if (password.length < 8) return 'Mínimo de 8 caracteres.';
+  if (password.length > 128) return 'Use no máximo 128 caracteres.';
   if (!/[A-Z]/.test(password)) return 'Inclua 1 letra maiúscula.';
+  if (!/[a-z]/.test(password)) return 'Inclua 1 letra minúscula.';
   if (!/[0-9]/.test(password)) return 'Inclua 1 número.';
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Inclua 1 caractere especial.';
   return undefined;
 }
 
@@ -122,14 +127,34 @@ export function useSignUpForm() {
       setStatus('loading');
 
       try {
-        /**
-         * TODO: substituir pelo serviço real quando o back-end estiver pronto.
-         * Exemplo: await authService.signUp(form);
-         */
-        await new Promise((resolve) => setTimeout(resolve, 1200)); // Simulação
+        await authService.register({
+          fullName: form.fullName,
+          email: form.email,
+          password: form.password,
+        });
         setStatus('success');
-      } catch {
+      } catch (error) {
         setStatus('error');
+        if (error instanceof ApiError && error.code === 'email_in_use') {
+          setServerError('Este e-mail já está cadastrado. Faça login para continuar.');
+          return;
+        }
+        if (error instanceof ApiError && error.code === 'validation_error') {
+          setServerError(error.message);
+          return;
+        }
+        if (error instanceof ApiError && error.code === 'service_unavailable') {
+          setServerError('Back-end indisponível no momento. Verifique se a API está ativa.');
+          return;
+        }
+        if (error instanceof TypeError) {
+          setServerError('Falha de conexão com a API. Verifique VITE_API_URL e CORS no back-end.');
+          return;
+        }
+        if (error instanceof ApiError) {
+          setServerError(`${error.message} (HTTP ${error.status})`);
+          return;
+        }
         setServerError('Não foi possível criar sua conta. Tente novamente.');
       }
     },
