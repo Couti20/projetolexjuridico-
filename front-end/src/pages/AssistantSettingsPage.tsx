@@ -1,9 +1,13 @@
 /**
- * AssistantSettingsPage — Configurações do assistente.
+ * AssistantSettingsPage — Página de configurações do assistente WhatsApp.
  *
- * Refatorado para usar apenas a OAB única do usuário autenticado (AuthContext).
- * Toda a lógica de múltiplas OABs (oabs[], handleAddOab, handleRemoveOab,
- * oabInput, oabFeedback) foi removida — o modelo de negócio é 1 OAB por usuário.
+ * Responsabilidades:
+ * - Gerenciar estado local de preferências de notificação e status do WhatsApp.
+ * - Persistir configurações via localStorage (chave versionada).
+ * - Orquestrar os sub-componentes sem lógica de UI neles.
+ *
+ * Nota: WhatsAppIntegrationSection usa a feature flag WHATSAPP_INTEGRATION_READY
+ * para ocultar o QR/botões enquanto o back-end não estiver pronto.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -21,24 +25,30 @@ import type {
   WhatsAppConnectionStatus,
 } from '../components/assistant-settings/types';
 
+// ─── Tipos ───────────────────────────────────────────────────────────────────
+
 interface StoredAssistantSettings {
   notifications?: NotificationPreferences;
   whatsAppStatus?: WhatsAppConnectionStatus;
   connectedDevice?: string;
 }
 
+// ─── Constantes ──────────────────────────────────────────────────────────────
+
 const STORAGE_KEY = 'lex-assistant-settings-v3';
 
 const INITIAL_NOTIFICATIONS: NotificationPreferences = {
-  criticalAlerts24h: true,
-  dailySummaryMorning: true,
-  aiTaskSuggestions: true,
+  criticalAlerts24h:        true,
+  dailySummaryMorning:      true,
+  aiTaskSuggestions:        true,
   weeklyProductivityReport: false,
-  quietHoursEnabled: false,
-  quietStart: '22:00',
-  quietEnd: '07:00',
-  dailySummaryTime: '08:00',
+  quietHoursEnabled:        false,
+  quietStart:               '22:00',
+  quietEnd:                 '07:00',
+  dailySummaryTime:         '08:00',
 };
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getStoredSettings(): StoredAssistantSettings {
   if (typeof window === 'undefined') return {};
@@ -53,140 +63,85 @@ function getStoredSettings(): StoredAssistantSettings {
   }
 }
 
-/** Formata a OAB do perfil para exibição: OAB/SP 123.456 */
+/** Normaliza a OAB do perfil para exibição: OAB/SP 123.456 */
 function formatUserOab(raw: string | undefined): string {
   if (!raw?.trim()) return '';
-  // Já pode vir formatada do AuthContext; normaliza para padrão visual
-  const cleaned = raw.trim().toUpperCase();
-  // Remove prefixo duplicado se houver
-  const withoutPrefix = cleaned.replace(/^OAB\/?/, '').trim();
-  const match = withoutPrefix.match(/^([A-Z]{2})[\s/]*(\d{4,6})$/);
-  if (!match) return cleaned; // devolve como está se não bater o padrão
+  const cleaned = raw.trim().toUpperCase().replace(/^OAB\/?/, '').trim();
+  const match = cleaned.match(/^([A-Z]{2})[\s/]*(\d{4,6})$/);
+  if (!match) return raw.trim().toUpperCase();
   const [, uf, number] = match;
-  const formattedNumber = number.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `OAB/${uf} ${formattedNumber}`;
+  return `OAB/${uf} ${number.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }
 
-// Ainda necessário para compatibilidade com OabMonitoringSection
+/** Compatibilidade com OabMonitoringSection (prop formatOab) */
 function formatOabEntry(oab: OabEntry): string {
   return `OAB/${oab.uf} ${oab.number.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }
 
-function finderValue(row: number, col: number, originRow: number, originCol: number): boolean {
-  const localRow = row - originRow;
-  const localCol = col - originCol;
-  const outer = localRow === 0 || localRow === 6 || localCol === 0 || localCol === 6;
-  const inner = localRow >= 2 && localRow <= 4 && localCol >= 2 && localCol <= 4;
-  return outer || inner;
-}
-
-function buildQrCells(seed: number, size = 21): boolean[] {
-  const cells: boolean[] = [];
-  let state = seed * 9301 + 49297;
-  for (let row = 0; row < size; row += 1) {
-    for (let col = 0; col < size; col += 1) {
-      const onTopLeft    = row <= 6 && col <= 6;
-      const onTopRight   = row <= 6 && col >= size - 7;
-      const onBottomLeft = row >= size - 7 && col <= 6;
-      if (onTopLeft)    { cells.push(finderValue(row, col, 0, 0));            continue; }
-      if (onTopRight)   { cells.push(finderValue(row, col, 0, size - 7));     continue; }
-      if (onBottomLeft) { cells.push(finderValue(row, col, size - 7, 0));     continue; }
-      state = (state * 1103515245 + 12345) % 2147483648;
-      cells.push((state % 9) < 4);
-    }
-  }
-  return cells;
-}
+// ─── Componente ──────────────────────────────────────────────────────────────
 
 export function AssistantSettingsPage() {
   const { user } = useAuth();
   const stored   = useMemo(() => getStoredSettings(), []);
 
-  // OAB única: vem do perfil do usuário autenticado
   const userOab = formatUserOab(user?.oab);
 
-  const [whatsAppStatus,  setWhatsAppStatus]  = useState<WhatsAppConnectionStatus>(stored.whatsAppStatus  ?? 'connected');
-  const [connectedDevice, setConnectedDevice] = useState(stored.connectedDevice ?? 'iPhone 15 do Dr. João');
-  const [qrSeed,          setQrSeed]          = useState(11);
-  const [qrExpiresAt,     setQrExpiresAt]     = useState(() => Date.now() + 2 * 60 * 1000);
-  const [clockTick,       setClockTick]       = useState(Date.now());
+  const [whatsAppStatus,  setWhatsAppStatus]  = useState<WhatsAppConnectionStatus>(stored.whatsAppStatus  ?? 'disconnected');
+  const [connectedDevice, setConnectedDevice] = useState(stored.connectedDevice ?? '');
   const [testStatus,      setTestStatus]      = useState<TestStatus>('idle');
   const [notifications,   setNotifications]   = useState<NotificationPreferences>(stored.notifications ?? INITIAL_NOTIFICATIONS);
   const [saveStatus,      setSaveStatus]      = useState<SaveStatus>('idle');
 
-  useEffect(() => {
-    const id = window.setInterval(() => setClockTick(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
-
+  // Persiste sempre que estado relevante muda
   useEffect(() => {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ notifications, whatsAppStatus, connectedDevice } satisfies StoredAssistantSettings),
+      JSON.stringify({
+        notifications,
+        whatsAppStatus,
+        connectedDevice,
+      } satisfies StoredAssistantSettings),
     );
   }, [connectedDevice, notifications, whatsAppStatus]);
 
-  const qrCells = useMemo(() => buildQrCells(qrSeed), [qrSeed]);
-
-  const alertsEnabledCount = useMemo(
-    () => [
-      notifications.criticalAlerts24h,
-      notifications.dailySummaryMorning,
-      notifications.aiTaskSuggestions,
-      notifications.weeklyProductivityReport,
-    ].filter(Boolean).length,
-    [notifications],
-  );
-
-  const qrRemainingSeconds = Math.max(0, Math.ceil((qrExpiresAt - clockTick) / 1000));
-  const qrCountdown = `${String(Math.floor(qrRemainingSeconds / 60)).padStart(2, '0')}:${String(qrRemainingSeconds % 60).padStart(2, '0')}`;
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   function markSaved() {
     setSaveStatus('saved');
-    window.setTimeout(() => setSaveStatus('idle'), 1600);
+    window.setTimeout(() => setSaveStatus('idle'), 1_600);
   }
 
-  function updateNotification<K extends keyof NotificationPreferences>(key: K, value: NotificationPreferences[K]) {
+  function updateNotification<K extends keyof NotificationPreferences>(
+    key: K,
+    value: NotificationPreferences[K],
+  ) {
     setNotifications((prev) => ({ ...prev, [key]: value }));
     markSaved();
-  }
-
-  function handleRefreshQr() {
-    setQrSeed((prev) => prev + 1);
-    setQrExpiresAt(Date.now() + 2 * 60 * 1000);
-  }
-
-  function handleDisconnectWhatsApp() {
-    setWhatsAppStatus('disconnected');
-    setConnectedDevice('');
-    handleRefreshQr();
-    markSaved();
-  }
-
-  function handleConnectWhatsApp() {
-    setWhatsAppStatus('connecting');
-    window.setTimeout(() => {
-      setWhatsAppStatus('connected');
-      setConnectedDevice('iPhone 15 do Dr. João');
-      markSaved();
-    }, 900);
   }
 
   function handleSendTestMessage() {
     setTestStatus('sending');
     window.setTimeout(() => {
       setTestStatus('sent');
-      window.setTimeout(() => setTestStatus('idle'), 1800);
+      window.setTimeout(() => setTestStatus('idle'), 1_800);
     }, 800);
   }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto space-y-5">
+
         <AssistantHeaderSummary
           userOab={userOab}
           whatsAppStatus={whatsAppStatus}
-          alertsEnabledCount={alertsEnabledCount}
+          alertsEnabledCount={[
+            notifications.criticalAlerts24h,
+            notifications.dailySummaryMorning,
+            notifications.aiTaskSuggestions,
+            notifications.weeklyProductivityReport,
+          ].filter(Boolean).length}
           quietHoursEnabled={notifications.quietHoursEnabled}
           quietStart={notifications.quietStart}
           quietEnd={notifications.quietEnd}
@@ -201,12 +156,7 @@ export function AssistantSettingsPage() {
           <WhatsAppIntegrationSection
             whatsAppStatus={whatsAppStatus}
             connectedDevice={connectedDevice}
-            qrCells={qrCells}
-            qrCountdown={qrCountdown}
             testStatus={testStatus}
-            onDisconnectWhatsApp={handleDisconnectWhatsApp}
-            onConnectWhatsApp={handleConnectWhatsApp}
-            onRefreshQr={handleRefreshQr}
             onSendTestMessage={handleSendTestMessage}
           />
         </div>
