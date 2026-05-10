@@ -1,4 +1,4 @@
-# Lexa monorepo (estrutura inicial)
+# Lex monorepo (estrutura inicial)
 
 Estrutura atual separada para trabalho em equipe:
 
