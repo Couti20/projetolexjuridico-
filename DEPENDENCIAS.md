@@ -62,6 +62,15 @@ copy .env.example .env
 # 6. Suba o servidor
 uvicorn app.main:app --reload
 ```
+==================================================
+linux 
+
+python3 -m venv .venv
+
+source .venv/bin/activate
+
+
+
 
 ### Como rodar (após primeira vez)
 
