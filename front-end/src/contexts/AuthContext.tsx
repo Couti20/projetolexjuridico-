@@ -3,44 +3,36 @@
  *
  * Gerencia sessão do usuário autenticado.
  *
- * Problema corrigido:
- * Anteriormente, `setupCompleted` era derivado de `Boolean(user.oab?.trim())`.
- * Isso fazia com que, ao fazer login após logout, o usuário fosse redirecionado
- * para o setup novamente — pois o OAB vindo do back-end pode ser string vazia.
+ * Fonte da verdade para setupCompleted:
+ * - Antes: flag no localStorage por usuário (não sincronizava entre dispositivos).
+ * - Agora: campo `setupCompleted` vindo do back-end no login/register response.
+ *   O localStorage ainda guarda a sessão local, mas o valor de setupCompleted
+ *   sempre vem do objeto AuthUser retornado pela API.
  *
- * Solução:
- * `setupCompleted` agora é uma flag independente, armazenada em chave própria
- * no localStorage (`lex-setup-completed-{userId}`) e nunca mais é recalculada
- * a partir do valor do OAB. Uma vez marcada como `true`, permanece assim.
+ * Tratamento de 401 (token expirado):
+ * - api.ts dispara CustomEvent('lex:unauthorized') ao receber 401.
+ * - AuthProvider escuta esse evento e chama logout() + redireciona via
+ *   onUnauthorized callback.
+ * - Isso evita window.location.href (hard reload) dentro de um módulo utilitário.
  */
 
-import { createContext, useCallback, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import type { AuthSession, AuthUser } from '../types/auth';
 import { clearAuthToken, getAuthToken } from '../services/api';
 
-// ─── Constantes ──────────────────────────────────────────────────────────────
+// ── Constantes ──────────────────────────────────────────────────────────
+const AUTH_STORAGE_KEY = 'lex-auth-session';
+const SESSION_TTL_MS   = 8 * 60 * 60 * 1000; // 8 horas
 
-const AUTH_STORAGE_KEY  = 'lex-auth-session';
-const SESSION_TTL_MS    = 8 * 60 * 60 * 1000; // 8 horas
-
-// ─── Helpers: flag de setup por usuário ──────────────────────────────────────
-
-function setupKey(userId: string): string {
-  return `lex-setup-completed-${userId}`;
-}
-
-function readSetupFlag(userId: string): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(setupKey(userId)) === 'true';
-}
-
-function writeSetupFlag(userId: string): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(setupKey(userId), 'true');
-}
-
-// ─── Helpers: sessão ─────────────────────────────────────────────────────────
-
+// ── Helpers: sessão ─────────────────────────────────────────────────────
 function readStoredSession(): AuthSession | null {
   if (typeof window === 'undefined') return null;
 
@@ -69,18 +61,16 @@ function readStoredSession(): AuthSession | null {
       return null;
     }
 
-    // setupCompleted: lê da flag dedicada por usuário (fonte da verdade)
-    const setupCompleted = readSetupFlag(user.id);
-
     return {
       user: {
-        id:       user.id,
-        fullName: user.fullName,
-        email:    user.email,
-        oab:      typeof user.oab === 'string' ? user.oab : undefined,
+        id:             user.id,
+        fullName:       user.fullName,
+        email:          user.email,
+        oab:            typeof user.oab === 'string' ? user.oab : undefined,
+        setupCompleted: typeof user.setupCompleted === 'boolean' ? user.setupCompleted : false,
       },
       authenticatedAt,
-      setupCompleted,
+      setupCompleted: typeof candidate.setupCompleted === 'boolean' ? candidate.setupCompleted : false,
     };
   } catch (error) {
     console.error('Não foi possível restaurar a sessão local.', error);
@@ -97,8 +87,7 @@ function storeSession(session: AuthSession | null): void {
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 }
 
-// ─── Context ─────────────────────────────────────────────────────────────────
-
+// ── Context ──────────────────────────────────────────────────────────────
 interface AuthContextValue {
   user:             AuthUser | null;
   isAuthenticated:  boolean;
@@ -114,18 +103,35 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 
 interface AuthProviderProps {
   children: ReactNode;
+  /** Chamado quando o back-end retorna 401 (token expirado/revogado). */
+  onUnauthorized?: () => void;
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children, onUnauthorized }: AuthProviderProps) {
   const [session, setSession] = useState<AuthSession | null>(() => readStoredSession());
+  const onUnauthorizedRef = useRef(onUnauthorized);
+  useEffect(() => { onUnauthorizedRef.current = onUnauthorized; }, [onUnauthorized]);
 
-  const hasToken   = typeof window !== 'undefined' ? Boolean(getAuthToken()) : false;
+  const hasToken    = typeof window !== 'undefined' ? Boolean(getAuthToken()) : false;
   const safeSession = hasToken ? session : null;
 
-  // ── login ─────────────────────────────────────────────────────────────────
+  // ── Escuta evento global de 401 (disparado por api.ts) ───────────────────
+  useEffect(() => {
+    const handler = () => {
+      setSession(null);
+      clearAuthToken();
+      storeSession(null);
+      onUnauthorizedRef.current?.();
+    };
+    window.addEventListener('lex:unauthorized', handler);
+    return () => window.removeEventListener('lex:unauthorized', handler);
+  }, []);
+
+  // ── login ────────────────────────────────────────────────────────────
   const login = useCallback((user: AuthUser) => {
-    // setupCompleted lido da flag persistida — não depende do oab vindo do back-end
-    const setupCompleted = readSetupFlag(user.id);
+    // setupCompleted vem diretamente do back-end (campo no AuthUser)
+    // Não recalculamos mais a partir do oab nem do localStorage
+    const setupCompleted = user.setupCompleted ?? false;
 
     const nextSession: AuthSession = {
       user,
@@ -136,15 +142,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     storeSession(nextSession);
   }, []);
 
-  // ── logout ────────────────────────────────────────────────────────────────
+  // ── logout ───────────────────────────────────────────────────────────
   const logout = useCallback(() => {
     setSession(null);
     clearAuthToken();
     storeSession(null);
-    // Não apaga a flag de setup — o usuário já completou, não deve refazer.
   }, []);
 
-  // ── updateUser ────────────────────────────────────────────────────────────
+  // ── updateUser ─────────────────────────────────────────────────────
   const updateUser = useCallback((partialUser: Partial<AuthUser>) => {
     setSession((prev) => {
       if (!prev) return prev;
@@ -157,17 +162,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   }, []);
 
-  // ── completeSetup ─────────────────────────────────────────────────────────
+  // ── completeSetup ───────────────────────────────────────────────────
   const completeSetup = useCallback((oab?: string) => {
     setSession((prev) => {
       if (!prev) return prev;
-
-      // Persiste a flag de setup vinculada ao userId — sobrevive a logout/login
-      writeSetupFlag(prev.user.id);
-
       const nextSession: AuthSession = {
         ...prev,
-        user: { ...prev.user, oab: oab?.trim() || prev.user.oab },
+        user: {
+          ...prev.user,
+          oab: oab?.trim() || prev.user.oab,
+          setupCompleted: true,
+        },
         setupCompleted: true,
       };
       storeSession(nextSession);
@@ -175,7 +180,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   }, []);
 
-  // ── value ─────────────────────────────────────────────────────────────────
+  // ── value ─────────────────────────────────────────────────────────────
   const value = useMemo<AuthContextValue>(
     () => ({
       user:             safeSession?.user ?? null,

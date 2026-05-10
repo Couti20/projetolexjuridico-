@@ -5,8 +5,11 @@
  * - Setup já concluído → /dashboard
  * - Primeiro acesso     → /configuracao
  *
- * A decisão é feita lendo isSetupCompleted do AuthContext,
- * que por sua vez lê a flag `lex-setup-completed-{userId}` do localStorage.
+ * Race condition corrigida:
+ * - Antes: `isSetupCompleted` era lido do closure — podia estar desatualizado
+ *   quando o setTimeout disparava.
+ * - Agora: a decisão é feita usando `authenticatedUser.setupCompleted` diretamente,
+ *   que é o valor que veio da API naquele mesmo tick. Não depende do estado React.
  */
 
 import { useEffect, useRef } from 'react';
@@ -63,16 +66,20 @@ export function LoginPage({
     hasCommittedSuccess.current = true;
     login(authenticatedUser);
 
-    // Aguarda o AuthContext processar o login e ler a flag de setup
+    // Race condition corrigida: usa authenticatedUser.setupCompleted (valor da API)
+    // em vez de isSetupCompleted (estado React que pode estar um render atrasado).
+    const userSetupCompleted = authenticatedUser.setupCompleted ?? false;
+
     const timeoutId = window.setTimeout(() => {
-      if (isSetupCompleted) {
+      if (userSetupCompleted) {
         navigateDashboardRef.current();
       } else {
         navigateSetupRef.current();
       }
-    }, 1_600);
+    }, 1_500); // delay apenas para a animação de progresso
 
     return () => window.clearTimeout(timeoutId);
+  // isSetupCompleted mantido nas deps para que o texto de redirect na UI seja correto
   }, [authenticatedUser, isSuccess, isSetupCompleted, login]);
 
   return (
@@ -163,7 +170,7 @@ export function LoginPage({
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">Acesso autorizado!</h2>
                   <p className="text-slate-500 max-w-xs">
-                    {isSetupCompleted
+                    {(authenticatedUser?.setupCompleted ?? false)
                       ? 'Redirecionando para o dashboard…'
                       : 'Redirecionando para a configuração inicial…'}
                   </p>

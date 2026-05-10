@@ -1,10 +1,11 @@
 /**
  * api.ts — Camada de HTTP centralizada.
  *
- * Sempre usa o backend real (fetchWithAuth).
  * O token JWT é lido do localStorage (chave: lex-auth-token).
- * Se o backend retornar 401, a sessão é invalidada e o user é
- * redirecionado para /login.
+ *
+ * Se o back-end retornar 401, dispara CustomEvent('lex:unauthorized').
+ * O AuthProvider escuta esse evento e faz logout + redi-reciona via React Router.
+ * Isso evita window.location.href (hard reload que destroça o estado React).
  */
 
 export class ApiError extends Error {
@@ -34,7 +35,12 @@ export function clearAuthToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
-// ── Interceptor de fetch com JWT ────────────────────────────────────────────
+// ── Interceptor de fetch com JWT ──────────────────────────────────────────
+function dispatchUnauthorized(): void {
+  // Emite evento global — o AuthProvider escuta e faz logout sem hard reload
+  window.dispatchEvent(new CustomEvent('lex:unauthorized'));
+}
+
 async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
   const baseUrl = import.meta.env.VITE_API_URL ?? '';
@@ -55,7 +61,7 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
 
   if (response.status === 401) {
     clearAuthToken();
-    window.location.href = '/login';
+    dispatchUnauthorized(); // ← event— sem hard reload
     throw new ApiError(401, 'Sessão expirada. Faça login novamente.', 'unauthorized');
   }
 
@@ -75,7 +81,7 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
   return response.json() as Promise<T>;
 }
 
-// ── Helpers de delay (usados em animações de loading opcionais) ─────────────
+// ── Helpers de delay (usados em animações de loading opcionais) ────────────
 interface RequestOptions {
   minDelayMs?: number;
   maxDelayMs?: number;
@@ -95,11 +101,11 @@ async function withOptionalDelay<T>(fn: () => Promise<T>, options?: RequestOptio
   return fn();
 }
 
-// ── Interface pública ─────────────────────────────────────────────────────────────
+// ── Interface pública ───────────────────────────────────────────────────────────────────
 export const api = {
   get<T>(
     path: string,
-    _resolver?: () => T | Promise<T>,  // mantido por compatibilidade, ignorado
+    _resolver?: () => T | Promise<T>,
     options?: RequestOptions,
   ) {
     return withOptionalDelay(() => fetchWithAuth<T>(path), options);
