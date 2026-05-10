@@ -13,11 +13,14 @@
  *   Ex: "(11) 99999-9999" → "+5511999999999"
  */
 
-import { useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
+import { api } from '../services/api';
+import { AuthContext } from '../contexts/AuthContext';
+import type { AuthUser } from '../types/auth';
 
 // ── Schemas Zod ───────────────────────────────────────────────────────────────
 
@@ -29,7 +32,6 @@ const OAB_PATTERN = /^[A-Z]{2}\s*\d{4,6}$|^\d{4,6}\/[A-Z]{2}$/;
  * Resultado: +55 + DDDnúmero → ex: +5511999999999
  */
 function toE164Brazil(digits: string): string {
-  // Remove eventual 55 de DDI duplicado que o usuário possa ter digitado
   const clean = digits.replace(/^55/, '').replace(/\D/g, '');
   return `+55${clean}`;
 }
@@ -44,13 +46,10 @@ export const setupSchema = z.object({
   whatsapp: z
     .string()
     .min(1, 'Informe seu número de WhatsApp.')
-    // 1. Remove tudo que não for dígito
     .transform((v) => v.replace(/\D/g, ''))
-    // 2. Valida: 10 dígitos (fixo com DDD) ou 11 dígitos (celular com DDD)
     .refine((v) => v.length === 10 || v.length === 11, {
       message: 'Número inválido. Ex: (11) 99999-9999',
     })
-    // 3. Converte para E.164 (+55...)
     .transform((v) => toE164Brazil(v)),
 });
 
@@ -58,10 +57,6 @@ export type SetupFormValues = z.infer<typeof setupSchema>;
 
 // ── Máscaras de input ─────────────────────────────────────────────────────────
 
-/**
- * Formata enquanto o usuário digita: (11) 99999-9999
- * Usado como fallback / utilitário quando react-imask não estiver disponível.
- */
 export function maskWhatsApp(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11);
   if (digits.length <= 2) return digits.length ? `(${digits}` : '';
@@ -69,7 +64,6 @@ export function maskWhatsApp(value: string): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-/** Formata OAB enquanto o usuário digita: SP 123456 */
 export function maskOab(value: string): string {
   const upper = value.toUpperCase();
   const letters = upper.replace(/[^A-Z]/g, '').slice(0, 2);
@@ -77,19 +71,6 @@ export function maskOab(value: string): string {
   if (!letters) return digits;
   if (!digits) return letters;
   return `${letters} ${digits}`;
-}
-
-// ── Serviço mock (substituir pelo real quando o back estiver pronto) ──────────
-async function saveSetupMock(data: SetupFormValues): Promise<void> {
-  await new Promise<void>((resolve, reject) =>
-    setTimeout(() => {
-      if (Math.random() < 0.05) reject(new Error('Timeout simulado'));
-      else resolve();
-    }, 1200),
-  );
-  // TODO: substituir por: await setupService.saveSetup(data);
-  // data.whatsapp já chegará no formato E.164 ex: +5511999999999
-  void data;
 }
 
 // ── Validação online da OAB (Escavador) ──────────────────────────────────────
@@ -104,6 +85,8 @@ async function validateOabOnlineMock(oab: string): Promise<boolean> {
 type OabValidationStatus = 'idle' | 'validating-oab' | 'oab-valid' | 'oab-invalid';
 
 export function useSetupForm() {
+  const auth = useContext(AuthContext);
+
   const form = useForm<SetupFormValues>({
     resolver: zodResolver(setupSchema),
     defaultValues: { oab: '', whatsapp: '' },
@@ -111,11 +94,33 @@ export function useSetupForm() {
   });
 
   const submitMutation = useMutation({
-    mutationFn: saveSetupMock,
+    mutationFn: async (data: SetupFormValues) => {
+      // Chama o back-end real: persiste OAB e marca setup_completed = true
+      const updatedUser = await api.post<
+        { oab: string; whatsapp: string },
+        AuthUser
+      >('/users/me/setup', { oab: data.oab, whatsapp: data.whatsapp });
+      return { updatedUser, oab: data.oab };
+    },
+    onSuccess: ({ updatedUser, oab }) => {
+      // Sincroniza a sessão local com os dados retornados pelo back-end
+      if (auth) {
+        if (updatedUser?.setupCompleted !== undefined) {
+          // Back retornou AuthUser completo — atualiza tudo
+          auth.updateUser(updatedUser);
+          auth.completeSetup(updatedUser.oab ?? oab);
+        } else {
+          // Fallback: marca como concluído com o OAB do formulário
+          auth.completeSetup(oab);
+        }
+      }
+    },
     onError: (err) => {
-      form.setError('root', {
-        message: err instanceof Error ? err.message : 'Não foi possível salvar. Tente novamente.',
-      });
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível salvar. Tente novamente.';
+      form.setError('root', { message });
     },
   });
 
