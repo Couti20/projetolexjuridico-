@@ -1,17 +1,11 @@
 /**
  * AppSidebar — Sidebar isolada como componente independente e memoizado.
- *
- * Extraída do AppLayout para evitar re-renders completos da sidebar
- * quando apenas o conteúdo da página muda.
- *
- * Props simples e estáveis garantem que React.memo funcione corretamente:
- * a sidebar só re-renderiza quando pathname ou callbacks mudam.
  */
 
 import { memo } from 'react';
 import {
   Scale, LayoutDashboard, FileText, ListTodo,
-  Settings, LogOut, type LucideIcon,
+  Settings, LogOut, MessageCircle, type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -19,13 +13,15 @@ interface NavItem {
   label: string;
   path?: string;
   badge?: number;
+  iconColor?: string;
 }
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard',      path: '/dashboard' },
   { icon: FileText,        label: 'Processos',      path: '/processos' },
   { icon: ListTodo,        label: 'Tarefas do dia', path: '/tarefas', badge: 3 },
-  { icon: Settings,        label: 'Configurações',  path: '/configuracoes/assistente' },
+  { icon: MessageCircle,   label: 'WhatsApp',       path: '/whatsapp', iconColor: 'text-green-400' },
+  { icon: Settings,        label: 'Configurações',  path: '/configuracoes' },
 ] satisfies NavItem[];
 
 interface AppSidebarProps {
@@ -51,12 +47,13 @@ export const AppSidebar = memo(function AppSidebar({
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map(({ icon: Icon, label, path, badge }) => {
+        {NAV_ITEMS.map(({ icon: Icon, label, path, badge, iconColor }) => {
           const active = Boolean(
             path && (
               pathname === path ||
               pathname.startsWith(`${path}/`) ||
-              (path.startsWith('/configuracoes') && pathname.startsWith('/configuracoes'))
+              (path === '/configuracoes' && pathname.startsWith('/configuracoes')) ||
+              (path === '/whatsapp' && pathname === '/whatsapp')
             ),
           );
           const isDisabled = !path;
@@ -74,7 +71,10 @@ export const AppSidebar = memo(function AppSidebar({
                   : 'text-slate-400 hover:text-white hover:bg-slate-800',
               ].join(' ')}
             >
-              <Icon size={18} className="shrink-0" />
+              <Icon
+                size={18}
+                className={['shrink-0', !active && iconColor ? iconColor : ''].join(' ').trim()}
+              />
               <span className="flex-1">{label}</span>
               {badge !== undefined && !isDisabled && (
                 <span className={[

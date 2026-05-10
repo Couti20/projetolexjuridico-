@@ -1,9 +1,7 @@
 /**
- * router.tsx — Configuração central de rotas com createBrowserRouter (React Router v6).
+ * router.tsx — Configuração central de rotas (React Router v6).
  *
- * Toda navegação interna usa <Navigate> ou useNavigate() do React Router.
- * window.location.href NUNCA deve ser usado para rotas internas — causa
- * reload completo que perde o estado do React Query e do AuthContext.
+ * Toda navegação interna usa useNavigate() — nunca window.location.href.
  */
 
 import { createBrowserRouter, Navigate, useNavigate } from 'react-router-dom';
@@ -11,18 +9,17 @@ import { lazy, Suspense } from 'react';
 import { PrivateRoute } from './PrivateRoute';
 import { PageLoader } from '../components/PageLoader';
 
-// ── Árvore PÚBLICA (carregada imediatamente — bundle principal) ──────────────────
 import LandingPage       from '../pages/public/LandingPage';
 import { SignUpPage }    from '../pages/SignUpPage';
 import { LoginPage }     from '../pages/LoginPage';
 
-// ── Árvore PRIVADA (lazy — carregadas sob demanda) ──────────────────────────
 const SetupPage               = lazy(() => import('../pages/SetupPage').then(m => ({ default: m.SetupPage })));
 const DashboardPage           = lazy(() => import('../pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const ProcessListPage         = lazy(() => import('../pages/ProcessListPage').then(m => ({ default: m.ProcessListPage })));
 const ProcessDetailPage       = lazy(() => import('../pages/ProcessDetailPage').then(m => ({ default: m.ProcessDetailPage })));
 const DailyTasksPage          = lazy(() => import('../pages/DailyTasksPage').then(m => ({ default: m.DailyTasksPage })));
 const AssistantSettingsPage   = lazy(() => import('../pages/AssistantSettingsPage').then(m => ({ default: m.AssistantSettingsPage })));
+const SettingsPage            = lazy(() => import('../pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const ProfilePage             = lazy(() => import('../pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const BillingPage             = lazy(() => import('../pages/BillingPage').then(m => ({ default: m.BillingPage })));
 const SecurityPage            = lazy(() => import('../pages/SecurityPage').then(m => ({ default: m.SecurityPage })));
@@ -32,7 +29,6 @@ function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
 }
 
-// Wrappers que injetam useNavigate nas páginas que precisam de callbacks de navegação
 function LoginPageWrapper() {
   const navigate = useNavigate();
   return (
@@ -66,67 +62,30 @@ function SetupPageWrapper() {
 }
 
 export const router = createBrowserRouter([
-  // ── Rotas públicas ───────────────────────────────────────────────────────────────────
-  {
-    path: '/',
-    element: <LandingPage />,
-  },
-  {
-    path: '/cadastro',
-    element: <SignUpPageWrapper />,
-  },
-  {
-    path: '/login',
-    element: <LoginPageWrapper />,
-  },
+  // Públicas
+  { path: '/',          element: <LandingPage /> },
+  { path: '/cadastro',  element: <SignUpPageWrapper /> },
+  { path: '/login',     element: <LoginPageWrapper /> },
 
-  // ── Configuração inicial (semi-privada) ───────────────────────────────────────
-  {
-    path: '/configuracao',
-    element: <SetupPageWrapper />,
-  },
+  // Onboarding
+  { path: '/configuracao', element: <SetupPageWrapper /> },
 
-  // ── Rotas privadas ──────────────────────────────────────────────────────────────────
-  {
-    path: '/dashboard',
-    element: <PrivateRoute><Lazy><DashboardPage /></Lazy></PrivateRoute>,
-  },
-  {
-    path: '/processos',
-    element: <PrivateRoute><Lazy><ProcessListPage /></Lazy></PrivateRoute>,
-  },
-  {
-    path: '/processos/:processId',
-    element: <PrivateRoute><Lazy><ProcessDetailPage /></Lazy></PrivateRoute>,
-  },
-  {
-    path: '/tarefas',
-    element: <PrivateRoute><Lazy><DailyTasksPage /></Lazy></PrivateRoute>,
-  },
-  {
-    path: '/configuracoes/assistente',
-    element: <PrivateRoute><Lazy><AssistantSettingsPage /></Lazy></PrivateRoute>,
-  },
-  {
-    path: '/configuracoes/perfil',
-    element: <PrivateRoute><Lazy><ProfilePage /></Lazy></PrivateRoute>,
-  },
-  {
-    path: '/configuracoes/plano-faturamento',
-    element: <PrivateRoute><Lazy><BillingPage /></Lazy></PrivateRoute>,
-  },
-  {
-    path: '/configuracoes/seguranca',
-    element: <PrivateRoute><Lazy><SecurityPage /></Lazy></PrivateRoute>,
-  },
-  {
-    path: '/configuracoes/ajuda',
-    element: <PrivateRoute><Lazy><HelpCenterPage /></Lazy></PrivateRoute>,
-  },
+  // Privadas
+  { path: '/dashboard',        element: <PrivateRoute><Lazy><DashboardPage /></Lazy></PrivateRoute> },
+  { path: '/processos',        element: <PrivateRoute><Lazy><ProcessListPage /></Lazy></PrivateRoute> },
+  { path: '/processos/:processId', element: <PrivateRoute><Lazy><ProcessDetailPage /></Lazy></PrivateRoute> },
+  { path: '/tarefas',          element: <PrivateRoute><Lazy><DailyTasksPage /></Lazy></PrivateRoute> },
 
-  // ── Fallback ──────────────────────────────────────────────────────────────────────
-  {
-    path: '*',
-    element: <Navigate to="/" replace />,
-  },
+  // WhatsApp (ex-Configurações do assistente)
+  { path: '/whatsapp',         element: <PrivateRoute><Lazy><AssistantSettingsPage /></Lazy></PrivateRoute> },
+
+  // Hub de configurações
+  { path: '/configuracoes',                       element: <PrivateRoute><Lazy><SettingsPage /></Lazy></PrivateRoute> },
+  { path: '/configuracoes/perfil',                element: <PrivateRoute><Lazy><ProfilePage /></Lazy></PrivateRoute> },
+  { path: '/configuracoes/plano-faturamento',     element: <PrivateRoute><Lazy><BillingPage /></Lazy></PrivateRoute> },
+  { path: '/configuracoes/seguranca',             element: <PrivateRoute><Lazy><SecurityPage /></Lazy></PrivateRoute> },
+  { path: '/configuracoes/ajuda',                 element: <PrivateRoute><Lazy><HelpCenterPage /></Lazy></PrivateRoute> },
+
+  // Fallback
+  { path: '*', element: <Navigate to="/" replace /> },
 ]);
