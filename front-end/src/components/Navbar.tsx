@@ -6,25 +6,43 @@
  *   onNavigateLogin  — callback do botão "Entrar".
  */
 
-import { useState, useEffect } from 'react';
+import { memo, useCallback, useState, type KeyboardEvent } from 'react';
 import { Scale, Menu, X, LogIn } from 'lucide-react';
+import { useScrollThrottle } from '../hooks/useScrollThrottle';
 
 interface NavbarProps {
   onNavigateSignUp: () => void;
   onNavigateLogin: () => void;
 }
 
-export function Navbar({ onNavigateSignUp, onNavigateLogin }: NavbarProps) {
-  const [isScrolled, setIsScrolled] = useState(false);
+export const Navbar = memo(function Navbar({ onNavigateSignUp, onNavigateLogin }: NavbarProps) {
+  const isScrolled = useScrollThrottle(20, 100);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+  const closeMobile = useCallback(() => {
+    setMobileMenuOpen(false);
   }, []);
 
-  const closeMobile = () => setMobileMenuOpen(false);
+  const toggleMobileMenu = useCallback(() => {
+    setMobileMenuOpen((prev) => !prev);
+  }, []);
+
+  const handleNavigateLogin = useCallback(() => {
+    closeMobile();
+    onNavigateLogin();
+  }, [closeMobile, onNavigateLogin]);
+
+  const handleNavigateSignUp = useCallback(() => {
+    closeMobile();
+    onNavigateSignUp();
+  }, [closeMobile, onNavigateSignUp]);
+
+  const handleMobileMenuKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Escape') closeMobile();
+    },
+    [closeMobile],
+  );
 
   return (
     <>
@@ -97,7 +115,7 @@ export function Navbar({ onNavigateSignUp, onNavigateLogin }: NavbarProps) {
             <div className="md:hidden">
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen((prev) => !prev)}
+                onClick={toggleMobileMenu}
                 className="text-slate-600"
                 aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
               >
@@ -115,9 +133,7 @@ export function Navbar({ onNavigateSignUp, onNavigateLogin }: NavbarProps) {
           role="dialog"
           aria-modal="true"
           aria-label="Menu de navegação"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') closeMobile();
-          }}
+          onKeyDown={handleMobileMenuKeyDown}
           className="md:hidden fixed inset-0 z-40 glass-panel border-none pt-24 px-4 pb-6 flex flex-col gap-6"
         >
           <a href="#features" onClick={closeMobile} className="text-lg font-medium text-slate-800">
@@ -137,10 +153,7 @@ export function Navbar({ onNavigateSignUp, onNavigateLogin }: NavbarProps) {
 
           <button
             type="button"
-            onClick={() => {
-              closeMobile();
-              onNavigateLogin();
-            }}
+            onClick={handleNavigateLogin}
             className="inline-flex items-center gap-2 text-base font-medium text-slate-500"
           >
             <LogIn size={16} />
@@ -149,10 +162,7 @@ export function Navbar({ onNavigateSignUp, onNavigateLogin }: NavbarProps) {
 
           <button
             type="button"
-            onClick={() => {
-              closeMobile();
-              onNavigateSignUp();
-            }}
+            onClick={handleNavigateSignUp}
             className="btn-primary w-full py-3 rounded-xl text-lg font-semibold mt-2"
           >
             Teste Grátis de 7 Dias
@@ -161,4 +171,6 @@ export function Navbar({ onNavigateSignUp, onNavigateLogin }: NavbarProps) {
       )}
     </>
   );
-}
+});
+
+Navbar.displayName = 'Navbar';

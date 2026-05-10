@@ -7,6 +7,7 @@
  */
 
 import { motion } from 'motion/react';
+import { memo } from 'react';
 import { Clock, MessageCircle, BarChart3, ArrowRight, ShieldCheck } from 'lucide-react';
 
 interface HeroSectionProps {
@@ -14,7 +15,7 @@ interface HeroSectionProps {
   onNavigateLogin: () => void;
 }
 
-export function HeroSection({ onNavigateSignUp, onNavigateLogin }: HeroSectionProps) {
+export const HeroSection = memo(function HeroSection({ onNavigateSignUp, onNavigateLogin }: HeroSectionProps) {
   return (
     <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -262,4 +263,6 @@ export function HeroSection({ onNavigateSignUp, onNavigateLogin }: HeroSectionPr
       </div>
     </section>
   );
-}
+});
+
+HeroSection.displayName = 'HeroSection';

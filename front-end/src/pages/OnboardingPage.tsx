@@ -150,7 +150,7 @@ export function OnboardingPage({ onNavigateDashboard, onSkip }: OnboardingPagePr
                       <button
                         type="button"
                         onClick={validateOabField}
-                        disabled={oabStatus === 'validating'}
+                        disabled={isLoading}
                         className="ml-2 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
                       >
                         Validar

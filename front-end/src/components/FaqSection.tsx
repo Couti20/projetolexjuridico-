@@ -23,3 +23,5 @@ export function FaqSection() {
     </section>
   );
 }
+
+export default FaqSection;
