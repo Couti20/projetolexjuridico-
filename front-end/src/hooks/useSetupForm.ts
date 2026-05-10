@@ -6,11 +6,6 @@
  * Máscaras aplicadas:
  *   - OAB    : UF + número  (ex: SP 123.456)
  *   - WhatsApp: (11) 99999-9999  →  E.164 no payload (+5511999999999)
- *
- * Transform E.164:
- *   O schema Zod converte o valor mascarado para o formato internacional
- *   exigido pelo backend FastAPI antes de enviar o POST.
- *   Ex: "(11) 99999-9999" → "+5511999999999"
  */
 
 import { useCallback, useContext } from 'react';
@@ -26,11 +21,6 @@ import type { AuthUser } from '../types/auth';
 
 const OAB_PATTERN = /^[A-Z]{2}\s*\d{4,6}$|^\d{4,6}\/[A-Z]{2}$/;
 
-/**
- * Converte dígitos brutos para E.164 brasileiro.
- * Aceita 10 dígitos (fixo) ou 11 dígitos (celular), ambos com DDD.
- * Resultado: +55 + DDDnúmero → ex: +5511999999999
- */
 function toE164Brazil(digits: string): string {
   const clean = digits.replace(/^55/, '').replace(/\D/g, '');
   return `+55${clean}`;
@@ -55,7 +45,7 @@ export const setupSchema = z.object({
 
 export type SetupFormValues = z.infer<typeof setupSchema>;
 
-// ── Máscaras de input ─────────────────────────────────────────────────────────
+// ── Máscaras de input ──────────────────────────────────────────────────────────
 
 export function maskWhatsApp(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -73,7 +63,7 @@ export function maskOab(value: string): string {
   return `${letters} ${digits}`;
 }
 
-// ── Validação online da OAB (Escavador) ──────────────────────────────────────
+// ── Validação online da OAB (mock — substituir por Escavador) ─────────────────
 async function validateOabOnlineMock(oab: string): Promise<boolean> {
   await new Promise((resolve) => setTimeout(resolve, 900));
   // TODO: substituir por: return escavadorService.validateOab(oab);
@@ -95,22 +85,19 @@ export function useSetupForm() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: SetupFormValues) => {
-      // Chama o back-end real: persiste OAB e marca setup_completed = true
-      const updatedUser = await api.post<
+      // PUT /users/me/setup — persiste OAB e marca setup_completed = true no banco
+      const updatedUser = await api.put<
         { oab: string; whatsapp: string },
         AuthUser
       >('/users/me/setup', { oab: data.oab, whatsapp: data.whatsapp });
       return { updatedUser, oab: data.oab };
     },
     onSuccess: ({ updatedUser, oab }) => {
-      // Sincroniza a sessão local com os dados retornados pelo back-end
       if (auth) {
         if (updatedUser?.setupCompleted !== undefined) {
-          // Back retornou AuthUser completo — atualiza tudo
           auth.updateUser(updatedUser);
           auth.completeSetup(updatedUser.oab ?? oab);
         } else {
-          // Fallback: marca como concluído com o OAB do formulário
           auth.completeSetup(oab);
         }
       }

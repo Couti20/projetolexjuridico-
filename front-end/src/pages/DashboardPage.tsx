@@ -136,36 +136,39 @@ export function DashboardPage() {
                   <h2 className="text-sm font-bold text-slate-800">Visualização de Carga da Semana</h2>
                   <p className="text-xs text-slate-400 mt-0.5">Distribuição de prazos fatais nos próximos 7 dias</p>
                 </div>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={overview.weekLoad} barSize={28} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fontSize: 11, fill: '#94a3b8' }}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(val, idx) =>
-                        `${val} (${overview.weekLoad[idx]?.date ?? ''})`
-                      }
-                    />
-                    <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(37,99,235,0.05)', radius: 8 }} />
-                    <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                      {overview.weekLoad.map((entry, index) => (
-                        <Cell
-                          key={entry.day}
-                          fill={
-                            entry.peak
-                              ? '#ef4444'
-                              : index === overview.todayIndex
-                              ? '#2563eb'
-                              : '#cbd5e1'
-                          }
-                          opacity={index > overview.todayIndex && !entry.peak ? 0.5 : 1}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                {/* minHeight garante dimensões válidas antes da 1ª renderização */}
+                <div style={{ minHeight: 180 }}>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={overview.weekLoad} barSize={28} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                      <XAxis
+                        dataKey="day"
+                        tick={{ fontSize: 11, fill: '#94a3b8' }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(val, idx) =>
+                          `${val} (${overview.weekLoad[idx]?.date ?? ''})`
+                        }
+                      />
+                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(37,99,235,0.05)', radius: 8 }} />
+                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                        {overview.weekLoad.map((entry, index) => (
+                          <Cell
+                            key={entry.day}
+                            fill={
+                              entry.peak
+                                ? '#ef4444'
+                                : index === overview.todayIndex
+                                ? '#2563eb'
+                                : '#cbd5e1'
+                            }
+                            opacity={index > overview.todayIndex && !entry.peak ? 0.5 : 1}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
 
                 <div className="flex items-center gap-4 mt-3">
                   <span className="flex items-center gap-1.5 text-xs text-slate-500">
