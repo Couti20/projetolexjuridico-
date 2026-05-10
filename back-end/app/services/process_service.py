@@ -1,8 +1,7 @@
 """Regras de negócio para processos.
 
-Por enquanto retorna mock.
-Quando a API Escavador for integrada, substituir os métodos
-chamando escavador_client ao invés do mock.
+Mock removido — retorna lista vazia enquanto Escavador não está integrado.
+O front trata lista vazia com estado visual adequado (empty state).
 """
 from sqlalchemy.orm import Session
 
@@ -11,36 +10,10 @@ from app.models.monitoring import Monitoring
 from app.schemas.process import ProcessItem
 
 
-# ── Mock — remover após integrar Escavador ─────────────────────────────────
-MOCK_PROCESSES: list[ProcessItem] = [
-    ProcessItem(
-        id="1002345-67-2023-8-26-0100",
-        number="1002345-67.2023.8.26.0100",
-        court="TJSP",
-        claimant="João da Silva",
-        defendant="Banco Exemplo S.A.",
-        district="2ª Vara Cível - Foro Central de São Paulo",
-        status="critico",
-        latestMovementAt="15/04/2026 14:30",
-        latestMovementTitle="Expedição de Intimação",
-    ),
-    ProcessItem(
-        id="1045231-88-2024-8-26-0100",
-        number="1045231-88.2024.8.26.0100",
-        court="TJSP",
-        claimant="Maria Oliveira",
-        defendant="Seguradora Foco S.A.",
-        district="7ª Vara Cível - Foro Central de São Paulo",
-        status="atencao",
-        latestMovementAt="14/04/2026 10:10",
-        latestMovementTitle="Juntada de Documento",
-    ),
-]
-
-
 def list_processes_for_user(db: Session, user_id: str) -> list[ProcessItem]:
     """
     Retorna processos monitorados pelo advogado.
+    Retorna lista vazia se nenhum processo foi vinculado ainda.
     TODO: quando Escavador estiver integrado, buscar atualizações em tempo real.
     """
     monitorings = (
@@ -50,8 +23,7 @@ def list_processes_for_user(db: Session, user_id: str) -> list[ProcessItem]:
     )
 
     if not monitorings:
-        # Banco vazio — retorna mock para não quebrar o front
-        return MOCK_PROCESSES
+        return []
 
     process_ids = [m.process_id for m in monitorings]
     processes = db.query(Process).filter(Process.id.in_(process_ids)).all()

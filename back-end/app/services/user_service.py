@@ -47,8 +47,24 @@ def create_user(
         oab=oab.strip().upper().replace(" ", ""),
         hashed_password=hash_password(plain_password),
         plan="light",
+        setup_completed=False,
     )
     db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def complete_setup(db: Session, user_id: str, oab: str) -> User | None:
+    """
+    Marca o setup como concluído e persiste o OAB definitivo.
+    Chamado pelo endpoint PUT /users/me/setup.
+    """
+    user = get_user_by_id(db, user_id)
+    if not user:
+        return None
+    user.oab = oab.strip().upper().replace(" ", "")
+    user.setup_completed = True
     db.commit()
     db.refresh(user)
     return user
@@ -60,4 +76,5 @@ def to_auth_user(user: User) -> AuthUser:
         fullName=user.full_name,
         email=user.email,
         oab=user.oab,
+        setupCompleted=user.setup_completed,
     )

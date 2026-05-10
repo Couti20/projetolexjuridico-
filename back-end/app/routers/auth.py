@@ -5,6 +5,8 @@ Melhorias de segurança:
 - Rate limiting via SlowAPI: 5 tentativas/min no login, 3/min no register.
 - Todos os erros de autenticação retornam a mesma mensagem genérica
   para não vazar se o e-mail existe ou não (user enumeration prevention).
+- Removido _banco_acessivel(): dupla conexão desnecessária. O SQLAlchemy
+  já lança SQLAlchemyError se o banco estiver offline — tratado nos excepts.
 """
 from datetime import datetime, timezone
 from typing import Annotated
@@ -13,12 +15,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import jwt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import get_db, engine
+from app.database import get_db
 from app.dependencies import create_access_token, get_current_user
 from app.models.token_blacklist import TokenBlacklist
 from app.schemas.auth import AuthUser, LoginRequest, LoginResponse, RegisterRequest
@@ -34,16 +35,6 @@ limiter = Limiter(key_func=get_remote_address)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _banco_acessivel() -> bool:
-    """Verifica se o banco MySQL está online e acessível."""
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-
 
 def _decode_jti(token: str) -> tuple[str | None, datetime | None]:
     """Extrai jti e exp do JWT sem validar assinatura (token já foi validado antes)."""
@@ -71,18 +62,12 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
     Retorna JWT já autenticado (login automático após cadastro).
     Rate limit: 3 cadastros por minuto por IP.
     """
-    if not _banco_acessivel():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Banco de dados indisponível. Tente novamente em instantes.",
-        )
-
     try:
         existing = get_user_by_email(db, payload.email)
     except SQLAlchemyError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Falha ao consultar o banco de dados. Verifique se as tabelas foram criadas.",
+            detail="Banco de dados indisponível. Tente novamente em instantes.",
         )
 
     if existing:
@@ -109,7 +94,7 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Falha ao gravar usuário no banco. Verifique estrutura da tabela users.",
+            detail="Banco de dados indisponível. Tente novamente em instantes.",
         )
     except ValueError as exc:
         db.rollback()
@@ -134,31 +119,21 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
     """
     Autentica o advogado.
     Rate limit: 5 tentativas por minuto por IP (proteção brute force).
-
-    Segurança:
-    - Mensagem de erro genérica (não revela se o e-mail existe).
-    - Banco offline bloqueia tudo, sem exceção.
+    Mensagem de erro genérica (não revela se o e-mail existe).
     """
-    if not _banco_acessivel():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
-        )
+    invalid_credentials = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="E-mail ou senha incorretos.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
     try:
         user = get_user_by_email(db, payload.email)
     except SQLAlchemyError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Falha ao consultar usuários no banco. Verifique conexão e migrações.",
+            detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
         )
-
-    # Mensagem genérica: não revela se o e-mail existe (user enumeration prevention)
-    invalid_credentials = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="E-mail ou senha incorretos.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
 
     if not user:
         raise invalid_credentials
@@ -192,7 +167,6 @@ def logout(
     Invalida o token JWT atual inserindo o jti na blacklist.
     A partir desse momento, o token é rejeitado em qualquer endpoint protegido.
     """
-    # Extrai o token do header Authorization
     auth_header = request.headers.get("Authorization", "")
     token = auth_header.removeprefix("Bearer ").strip()
 

@@ -38,6 +38,7 @@ class AuthUser(BaseModel):
     fullName: str
     email: str
     oab: str
+    setupCompleted: bool = False  # persiste entre dispositivos via banco
 
 
 class LoginResponse(BaseModel):
