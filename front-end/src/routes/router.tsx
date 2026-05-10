@@ -33,9 +33,10 @@ function LoginPageWrapper() {
   const navigate = useNavigate();
   return (
     <LoginPage
-      onNavigateHome={() => navigate('/')}
-      onNavigateSignUp={() => navigate('/cadastro')}
-      onNavigateSetup={() => navigate('/configuracao')}
+      onNavigateHome={()      => navigate('/')}
+      onNavigateSignUp={()    => navigate('/cadastro')}
+      onNavigateSetup={()     => navigate('/configuracao')}
+      onNavigateDashboard={()  => navigate('/dashboard')}
     />
   );
 }
@@ -63,28 +64,28 @@ function SetupPageWrapper() {
 
 export const router = createBrowserRouter([
   // Públicas
-  { path: '/',          element: <LandingPage /> },
-  { path: '/cadastro',  element: <SignUpPageWrapper /> },
-  { path: '/login',     element: <LoginPageWrapper /> },
+  { path: '/',         element: <LandingPage /> },
+  { path: '/cadastro', element: <SignUpPageWrapper /> },
+  { path: '/login',    element: <LoginPageWrapper /> },
 
-  // Onboarding
+  // Onboarding (só aparece se setupCompleted === false)
   { path: '/configuracao', element: <SetupPageWrapper /> },
 
   // Privadas
-  { path: '/dashboard',        element: <PrivateRoute><Lazy><DashboardPage /></Lazy></PrivateRoute> },
-  { path: '/processos',        element: <PrivateRoute><Lazy><ProcessListPage /></Lazy></PrivateRoute> },
+  { path: '/dashboard',            element: <PrivateRoute><Lazy><DashboardPage /></Lazy></PrivateRoute> },
+  { path: '/processos',            element: <PrivateRoute><Lazy><ProcessListPage /></Lazy></PrivateRoute> },
   { path: '/processos/:processId', element: <PrivateRoute><Lazy><ProcessDetailPage /></Lazy></PrivateRoute> },
-  { path: '/tarefas',          element: <PrivateRoute><Lazy><DailyTasksPage /></Lazy></PrivateRoute> },
+  { path: '/tarefas',              element: <PrivateRoute><Lazy><DailyTasksPage /></Lazy></PrivateRoute> },
 
-  // WhatsApp (ex-Configurações do assistente)
-  { path: '/whatsapp',         element: <PrivateRoute><Lazy><AssistantSettingsPage /></Lazy></PrivateRoute> },
+  // WhatsApp
+  { path: '/whatsapp', element: <PrivateRoute><Lazy><AssistantSettingsPage /></Lazy></PrivateRoute> },
 
   // Hub de configurações
-  { path: '/configuracoes',                       element: <PrivateRoute><Lazy><SettingsPage /></Lazy></PrivateRoute> },
-  { path: '/configuracoes/perfil',                element: <PrivateRoute><Lazy><ProfilePage /></Lazy></PrivateRoute> },
-  { path: '/configuracoes/plano-faturamento',     element: <PrivateRoute><Lazy><BillingPage /></Lazy></PrivateRoute> },
-  { path: '/configuracoes/seguranca',             element: <PrivateRoute><Lazy><SecurityPage /></Lazy></PrivateRoute> },
-  { path: '/configuracoes/ajuda',                 element: <PrivateRoute><Lazy><HelpCenterPage /></Lazy></PrivateRoute> },
+  { path: '/configuracoes',                   element: <PrivateRoute><Lazy><SettingsPage /></Lazy></PrivateRoute> },
+  { path: '/configuracoes/perfil',            element: <PrivateRoute><Lazy><ProfilePage /></Lazy></PrivateRoute> },
+  { path: '/configuracoes/plano-faturamento', element: <PrivateRoute><Lazy><BillingPage /></Lazy></PrivateRoute> },
+  { path: '/configuracoes/seguranca',         element: <PrivateRoute><Lazy><SecurityPage /></Lazy></PrivateRoute> },
+  { path: '/configuracoes/ajuda',             element: <PrivateRoute><Lazy><HelpCenterPage /></Lazy></PrivateRoute> },
 
   // Fallback
   { path: '*', element: <Navigate to="/" replace /> },
