@@ -1,11 +1,12 @@
 /**
- * Página de Login do Lex.
+ * LoginPage
  *
- * Layout split-screen (espelho do cadastro):
- * - Esquerda: painel escuro com branding e copy motivacional
- * - Direita: formulário de acesso à conta
+ * Após autenticar, decide o destino correto:
+ * - Setup já concluído → /dashboard
+ * - Primeiro acesso     → /configuracao
  *
- * Lógica totalmente isolada no hook useLoginForm.
+ * A decisão é feita lendo isSetupCompleted do AuthContext,
+ * que por sua vez lê a flag `lex-setup-completed-{userId}` do localStorage.
  */
 
 import { useEffect, useRef } from 'react';
@@ -23,53 +24,61 @@ const HIGHLIGHTS = [
 ];
 
 interface LoginPageProps {
-  onNavigateHome:    () => void;
-  onNavigateSignUp:  () => void;
-  onNavigateSetup:   () => void;
+  onNavigateHome:      () => void;
+  onNavigateSignUp:    () => void;
+  onNavigateSetup:     () => void;
+  onNavigateDashboard: () => void;
 }
 
-export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }: LoginPageProps) {
-  const { login } = useAuth();
-  const { form, errors, status, serverError, authenticatedUser, updateField, handleSubmit } = useLoginForm();
-  const hasCommittedSuccess = useRef(false);
-  const navigateSetupRef = useRef(onNavigateSetup);
+export function LoginPage({
+  onNavigateHome,
+  onNavigateSignUp,
+  onNavigateSetup,
+  onNavigateDashboard,
+}: LoginPageProps) {
+  const { login, isSetupCompleted } = useAuth();
+  const {
+    form, errors, status, serverError,
+    authenticatedUser, updateField, handleSubmit,
+  } = useLoginForm();
+
+  const hasCommittedSuccess   = useRef(false);
+  const navigateSetupRef      = useRef(onNavigateSetup);
+  const navigateDashboardRef  = useRef(onNavigateDashboard);
+
+  useEffect(() => { navigateSetupRef.current     = onNavigateSetup;     }, [onNavigateSetup]);
+  useEffect(() => { navigateDashboardRef.current  = onNavigateDashboard; }, [onNavigateDashboard]);
 
   const isLoading = status === 'loading';
   const isSuccess = status === 'success';
-
-  useEffect(() => {
-    navigateSetupRef.current = onNavigateSetup;
-  }, [onNavigateSetup]);
 
   useEffect(() => {
     if (!isSuccess) {
       hasCommittedSuccess.current = false;
       return undefined;
     }
-
     if (hasCommittedSuccess.current) return undefined;
+    if (!authenticatedUser) return undefined;
+
     hasCommittedSuccess.current = true;
-
-    if (!authenticatedUser) {
-      hasCommittedSuccess.current = false;
-      return undefined;
-    }
-
     login(authenticatedUser);
-    const timeoutId = window.setTimeout(() => {
-      navigateSetupRef.current();
-    }, 1600);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [authenticatedUser, isSuccess, login]);
+    // Aguarda o AuthContext processar o login e ler a flag de setup
+    const timeoutId = window.setTimeout(() => {
+      if (isSetupCompleted) {
+        navigateDashboardRef.current();
+      } else {
+        navigateSetupRef.current();
+      }
+    }, 1_600);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [authenticatedUser, isSuccess, isSetupCompleted, login]);
 
   return (
     <div className="min-h-screen flex">
       {/* ── Painel Esquerdo — Branding ── */}
       <div className="hidden lg:flex lg:w-5/12 xl:w-2/5 bg-slate-900 flex-col justify-between p-10 xl:p-14">
-        {/* Logo */}
         <button
           type="button"
           onClick={onNavigateHome}
@@ -82,7 +91,6 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
           <span className="text-xl font-bold text-white tracking-tight">Lex</span>
         </button>
 
-        {/* Headline + Destaques */}
         <div className="space-y-8">
           <div>
             <h2 className="text-3xl xl:text-4xl font-bold text-white leading-tight mb-3">
@@ -96,7 +104,6 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
             <div className="h-0.5 w-16 bg-blue-600 rounded-full mt-4" />
           </div>
 
-          {/* Destaques */}
           <ul className="space-y-3">
             {HIGHLIGHTS.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3">
@@ -108,7 +115,6 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
             ))}
           </ul>
 
-          {/* Stats */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4">
               <p className="text-2xl font-bold text-white">+2.000</p>
@@ -129,6 +135,7 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
       {/* ── Painel Direito — Formulário ── */}
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
         <div className="w-full max-w-md">
+
           {/* Logo mobile */}
           <button
             type="button"
@@ -156,7 +163,9 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">Acesso autorizado!</h2>
                   <p className="text-slate-500 max-w-xs">
-                    Redirecionando para a configuração inicial...
+                    {isSetupCompleted
+                      ? 'Redirecionando para o dashboard…'
+                      : 'Redirecionando para a configuração inicial…'}
                   </p>
                 </div>
                 <div className="h-1 w-48 bg-slate-100 rounded-full overflow-hidden">
@@ -176,13 +185,11 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.3 }}
               >
-                {/* Cabeçalho */}
                 <div className="mb-8">
                   <h1 className="text-2xl font-bold text-slate-900 mb-1">Acesse sua conta</h1>
                   <p className="text-slate-500 text-sm">Insira suas credenciais para continuar.</p>
                 </div>
 
-                {/* Erro de servidor */}
                 {serverError && (
                   <motion.div
                     initial={{ opacity: 0, y: -8 }}
@@ -195,7 +202,6 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
                   </motion.div>
                 )}
 
-                {/* Formulário */}
                 <form onSubmit={handleSubmit} noValidate className="space-y-5">
                   <InputField
                     id="email"
@@ -220,7 +226,6 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
                       error={errors.password}
                       disabled={isLoading}
                     />
-                    {/* Esqueceu a senha — corrigido: sem href hardcoded */}
                     <div className="flex justify-end">
                       <button
                         type="button"
@@ -233,7 +238,6 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
                     </div>
                   </div>
 
-                  {/* Lembrar-me */}
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -245,7 +249,6 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
                     <span className="text-sm text-slate-600">Lembrar-me neste dispositivo</span>
                   </label>
 
-                  {/* Botão de submit */}
                   <button
                     type="submit"
                     disabled={isLoading}
@@ -265,7 +268,6 @@ export function LoginPage({ onNavigateHome, onNavigateSignUp, onNavigateSetup }:
                   </button>
                 </form>
 
-                {/* Rodapé */}
                 <p className="mt-6 text-center text-sm text-slate-500">
                   Ainda não tem conta?{` `}
                   <button
