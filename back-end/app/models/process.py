@@ -1,5 +1,5 @@
-from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from datetime import datetime, date
+from sqlalchemy import DateTime, Date, ForeignKey, String, Text, Integer, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -19,6 +19,19 @@ class Process(Base):
     latest_movement_title: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # ── Campos Escavador ─────────────────────────────────────────────────────
+    numero_cnj:           Mapped[str | None]  = mapped_column(String(30),  nullable=True)
+    classe_escavador:     Mapped[str | None]  = mapped_column(String(120), nullable=True)
+    area_escavador:       Mapped[str | None]  = mapped_column(String(60),  nullable=True)
+    orgao_julgador:       Mapped[str | None]  = mapped_column(String(120), nullable=True)
+    data_distribuicao:    Mapped[date | None] = mapped_column(Date,        nullable=True)
+    ultima_movimentacao:  Mapped[str | None]  = mapped_column(Text,        nullable=True)
+    data_ultima_mov:      Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    prazo_dias:           Mapped[int | None]  = mapped_column(Integer,     nullable=True)
+    prazo_estimado:       Mapped[bool]        = mapped_column(Boolean,     default=False)
+    data_prazo:           Mapped[date | None] = mapped_column(Date,        nullable=True)
+    escavador_sync_at:    Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relacionamento com monitoramentos
     monitorings: Mapped[list["Monitoring"]] = relationship(back_populates="process")

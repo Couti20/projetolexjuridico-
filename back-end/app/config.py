@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # API Escavador
     ESCAVADOR_API_KEY: str = ""
     ESCAVADOR_BASE_URL: str = "https://api.escavador.com/api/v2"
+    ESCAVADOR_CALLBACK_SECRET: str = ""  # token de validação de callbacks
 
     # CORS
     FRONT_URL: str = "http://localhost:3000"
