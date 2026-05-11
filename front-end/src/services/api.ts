@@ -1,11 +1,14 @@
 /**
  * api.ts — Camada de HTTP centralizada.
  *
- * O token JWT é lido do localStorage (chave: lex-auth-token).
+ * Estratégia de fallback:
+ *   Cada método aceita um `resolver` opcional.
+ *   Se o back-end estiver offline ou retornar erro de rede,
+ *   o resolver é executado como fallback (dados simulados / mock).
+ *   Erros de negócio (4xx/5xx com payload) ainda são propagados normalmente.
  *
+ * O token JWT é lido do localStorage (chave: lex-auth-token).
  * Se o back-end retornar 401, dispara CustomEvent('lex:unauthorized').
- * O AuthProvider escuta esse evento e faz logout + redi-reciona via React Router.
- * Isso evita window.location.href (hard reload que destroça o estado React).
  */
 
 export class ApiError extends Error {
@@ -20,7 +23,7 @@ export class ApiError extends Error {
   }
 }
 
-// ── JWT helpers ───────────────────────────────────────────────────────────────────
+// ── JWT helpers ────────────────────────────────────────────────────
 const TOKEN_KEY = 'lex-auth-token';
 
 export function getAuthToken(): string | null {
@@ -35,9 +38,8 @@ export function clearAuthToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
-// ── Interceptor de fetch com JWT ──────────────────────────────────────────
+// ── Interceptor de fetch com JWT ────────────────────────────────────────
 function dispatchUnauthorized(): void {
-  // Emite evento global — o AuthProvider escuta e faz logout sem hard reload
   window.dispatchEvent(new CustomEvent('lex:unauthorized'));
 }
 
@@ -61,7 +63,7 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
 
   if (response.status === 401) {
     clearAuthToken();
-    dispatchUnauthorized(); // ← event— sem hard reload
+    dispatchUnauthorized();
     throw new ApiError(401, 'Sessão expirada. Faça login novamente.', 'unauthorized');
   }
 
@@ -81,7 +83,7 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
   return response.json() as Promise<T>;
 }
 
-// ── Helpers de delay (usados em animações de loading opcionais) ────────────
+// ── Helpers de delay ─────────────────────────────────────────────────────────────────
 interface RequestOptions {
   minDelayMs?: number;
   maxDelayMs?: number;
@@ -101,47 +103,84 @@ async function withOptionalDelay<T>(fn: () => Promise<T>, options?: RequestOptio
   return fn();
 }
 
-// ── Interface pública ───────────────────────────────────────────────────────────────────
+// ── Verifica se o erro é de rede/indisponibilidade (não de negócio) ──────────────
+// Erros de negócio (ApiError com status 4xx/5xx) são propagados normalmente.
+// Erros de rede (TypeError: Failed to fetch, 404 de rota inexistente) ativam o fallback.
+function isNetworkOrNotFound(err: unknown): boolean {
+  if (err instanceof TypeError) return true; // Failed to fetch, CORS, offline
+  if (err instanceof ApiError && err.status === 404) return true; // rota ainda não existe
+  return false;
+}
+
+// ── Interface pública ──────────────────────────────────────────────────────────────────
 export const api = {
-  get<T>(
+  async get<T>(
     path: string,
-    _resolver?: () => T | Promise<T>,
+    resolver?: () => T | Promise<T>,
     options?: RequestOptions,
-  ) {
-    return withOptionalDelay(() => fetchWithAuth<T>(path), options);
+  ): Promise<T> {
+    return withOptionalDelay(async () => {
+      try {
+        return await fetchWithAuth<T>(path);
+      } catch (err) {
+        if (resolver && isNetworkOrNotFound(err)) {
+          return resolver();
+        }
+        throw err;
+      }
+    }, options);
   },
 
-  post<TBody, TResponse>(
+  async post<TBody, TResponse>(
     path: string,
     body: TBody,
-    _resolver?: (body: TBody) => TResponse | Promise<TResponse>,
+    resolver?: (body: TBody) => TResponse | Promise<TResponse>,
     options?: RequestOptions,
-  ) {
-    return withOptionalDelay(
-      () => fetchWithAuth<TResponse>(path, { method: 'POST', body: JSON.stringify(body) }),
-      options,
-    );
+  ): Promise<TResponse> {
+    return withOptionalDelay(async () => {
+      try {
+        return await fetchWithAuth<TResponse>(path, { method: 'POST', body: JSON.stringify(body) });
+      } catch (err) {
+        if (resolver && isNetworkOrNotFound(err)) {
+          return resolver(body);
+        }
+        throw err;
+      }
+    }, options);
   },
 
-  put<TBody, TResponse>(
+  async put<TBody, TResponse>(
     path: string,
     body: TBody,
-    _resolver?: (body: TBody) => TResponse | Promise<TResponse>,
+    resolver?: (body: TBody) => TResponse | Promise<TResponse>,
     options?: RequestOptions,
-  ) {
-    return withOptionalDelay(
-      () => fetchWithAuth<TResponse>(path, { method: 'PUT', body: JSON.stringify(body) }),
-      options,
-    );
+  ): Promise<TResponse> {
+    return withOptionalDelay(async () => {
+      try {
+        return await fetchWithAuth<TResponse>(path, { method: 'PUT', body: JSON.stringify(body) });
+      } catch (err) {
+        if (resolver && isNetworkOrNotFound(err)) {
+          return resolver(body);
+        }
+        throw err;
+      }
+    }, options);
   },
 
-  delete<TResponse>(
+  async delete<TResponse>(
     path: string,
+    resolver?: () => TResponse | Promise<TResponse>,
     options?: RequestOptions,
-  ) {
-    return withOptionalDelay(
-      () => fetchWithAuth<TResponse>(path, { method: 'DELETE' }),
-      options,
-    );
+  ): Promise<TResponse> {
+    return withOptionalDelay(async () => {
+      try {
+        return await fetchWithAuth<TResponse>(path, { method: 'DELETE' });
+      } catch (err) {
+        if (resolver && isNetworkOrNotFound(err)) {
+          return resolver();
+        }
+        throw err;
+      }
+    }, options);
   },
 };
