@@ -16,6 +16,11 @@ export interface DayTask {
   status: TaskStatus;
   focusMinutes: number;
   snoozedUntil?: number;
+  // Notification fields (optional – only present when user sets them)
+  scheduledDate?: string;   // 'YYYY-MM-DD'
+  scheduledTime?: string;   // 'HH:MM'
+  notifyWhatsApp?: boolean;
+  notifySystem?: boolean;
 }
 
 function makeDueAt(day: number, month: number): number {
