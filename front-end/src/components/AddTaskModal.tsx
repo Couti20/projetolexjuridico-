@@ -25,45 +25,46 @@ function buildDueAt(date: string, time: string): number | null {
 }
 
 /**
- * Schedules a browser Notification for the task at the chosen date+time.
- * Falls back silently if the browser blocks permission.
+ * Schedules a browser Notification to fire exactly at `fireAt` timestamp.
  */
 function scheduleSystemNotification(title: string, fireAt: number): void {
   const delay = fireAt - Date.now();
   if (delay <= 0) return;
 
-  const request = () => {
-    window.setTimeout(() => {
-      try {
-        // eslint-disable-next-line no-new
-        new Notification(`⚖️ Lex: ${title}`, {
-          body: 'Lembrete de tarefa agendada.',
-          icon: '/favicon.ico',
-        });
-      } catch (_) { /* silent */ }
-    }, delay);
+  const fire = () => {
+    try {
+      new Notification(`⚖️ Lex: ${title}`, {
+        body: 'Lembrete de tarefa agendada.',
+        icon: '/favicon.ico',
+      });
+    } catch (_) { /* silent */ }
   };
 
   if (Notification.permission === 'granted') {
-    request();
+    window.setTimeout(fire, delay);
   } else if (Notification.permission !== 'denied') {
     Notification.requestPermission().then((permission) => {
-      if (permission === 'granted') request();
+      if (permission === 'granted') window.setTimeout(fire, delay);
     });
   }
 }
 
 /**
- * Opens WhatsApp with a pre-filled reminder message.
- * Uses the lawyer's own number from localStorage if available.
+ * Schedules WhatsApp deep-link to open at `fireAt` timestamp.
+ * Nothing opens immediately — only fires when the scheduled time arrives.
  */
-function openWhatsAppReminder(title: string, dueText: string): void {
-  const phone = window.localStorage.getItem('lex-whatsapp-phone') ?? '';
-  const message = encodeURIComponent(`⚖️ *Lembrete Lex*\n📋 ${title}\n🗓️ ${dueText}`);
-  const url = phone
-    ? `https://wa.me/${phone}?text=${message}`
-    : `https://wa.me/?text=${message}`;
-  window.open(url, '_blank', 'noopener');
+function scheduleWhatsAppReminder(title: string, dueText: string, fireAt: number): void {
+  const delay = fireAt - Date.now();
+  if (delay <= 0) return;
+
+  window.setTimeout(() => {
+    const phone = window.localStorage.getItem('lex-whatsapp-phone') ?? '';
+    const message = encodeURIComponent(`⚖️ *Lembrete Lex*\n📋 ${title}\n🗓️ ${dueText}`);
+    const url = phone
+      ? `https://wa.me/${phone}?text=${message}`
+      : `https://wa.me/?text=${message}`;
+    window.open(url, '_blank', 'noopener');
+  }, delay);
 }
 
 export function AddTaskModal({ onClose, onAdd }: Props) {
@@ -77,12 +78,10 @@ export function AddTaskModal({ onClose, onAdd }: Props) {
   const [notifySystem, setNotifySystem] = useState(false);
   const [error, setError] = useState('');
 
-  // Auto-focus title on mount
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -117,10 +116,11 @@ export function AddTaskModal({ onClose, onAdd }: Props) {
       notifySystem,
     };
 
-    // Schedule notifications only when date+time are both set
+    // Agendar notificações apenas se data+hora estiverem definidos.
+    // Nada abre imediatamente — tudo dispara no horário escolhido.
     if (date && time && dueAt) {
       if (notifySystem) scheduleSystemNotification(trimmed, dueAt);
-      if (notifyWhatsApp) openWhatsAppReminder(trimmed, dueText);
+      if (notifyWhatsApp) scheduleWhatsAppReminder(trimmed, dueText, dueAt);
     }
 
     onAdd(newTask);
@@ -136,7 +136,6 @@ export function AddTaskModal({ onClose, onAdd }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-slate-200">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-100">
           <h2 id="modal-title" className="text-base font-bold text-slate-900">Nova Tarefa</h2>
           <button
@@ -149,11 +148,9 @@ export function AddTaskModal({ onClose, onAdd }: Props) {
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} noValidate>
           <div className="px-5 py-4 space-y-4">
 
-            {/* Title */}
             <div>
               <label htmlFor="task-title" className="block text-xs font-semibold text-slate-700 mb-1">
                 Título <span className="text-rose-500">*</span>
@@ -170,7 +167,6 @@ export function AddTaskModal({ onClose, onAdd }: Props) {
               {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
             </div>
 
-            {/* Date + Time */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="task-date" className="block text-xs font-semibold text-slate-700 mb-1">Data</label>
@@ -196,7 +192,6 @@ export function AddTaskModal({ onClose, onAdd }: Props) {
               </div>
             </div>
 
-            {/* Priority */}
             <div>
               <label htmlFor="task-priority" className="block text-xs font-semibold text-slate-700 mb-1">Prioridade</label>
               <select
@@ -211,12 +206,12 @@ export function AddTaskModal({ onClose, onAdd }: Props) {
               </select>
             </div>
 
-            {/* Notifications — only active when time is set */}
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 space-y-2">
               <p className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
                 <Bell size={13} />
                 Notificar via
                 {!time && <span className="text-slate-400 font-normal ml-1">(defina a hora para ativar)</span>}
+                {time && <span className="text-emerald-600 font-normal ml-1">(dispara no horário agendado)</span>}
               </p>
               <label className={`flex items-center gap-2.5 cursor-pointer ${!time ? 'opacity-40' : ''}`}>
                 <input
@@ -245,7 +240,6 @@ export function AddTaskModal({ onClose, onAdd }: Props) {
 
           </div>
 
-          {/* Footer */}
           <div className="flex items-center justify-end gap-2 px-5 pb-5 pt-1">
             <button
               type="button"
