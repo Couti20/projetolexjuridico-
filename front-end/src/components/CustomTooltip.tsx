@@ -1,6 +1,10 @@
-import type { TooltipProps } from 'recharts';
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ value?: number | string }>;
+  label?: string | number;
+}
 
-export const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+export const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const rawValue = payload[0]?.value;
     const value = typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);

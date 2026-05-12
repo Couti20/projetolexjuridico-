@@ -41,6 +41,10 @@ export interface AuthUser {
   fullName: string;
   email: string;
   oab?: string;
+<<<<<<< HEAD
+=======
+  isAdmin?: boolean;
+>>>>>>> develop
   /**
    * Espelhado do campo `setup_completed` no banco.
    * Vem preenchido na resposta do login/register — persiste entre dispositivos.

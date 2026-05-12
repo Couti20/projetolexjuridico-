@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CircleAlert, Search } from 'lucide-react';
+import { CircleAlert, Search, X } from 'lucide-react';
 import { AppLayout } from '../layouts/AppLayout';
 import { useProcessesData } from '../hooks/useProcessesData';
 import type { ProcessStatus } from '../services/processService';
 import {
-  PROCESS_FILTER_STORAGE_KEY,
   PROCESS_SORT_STORAGE_KEY,
   type ProcessSort,
   STATUS_PRIORITY,
@@ -19,24 +18,13 @@ export function ProcessListPage() {
   const { processes, loadState, reload } = useProcessesData();
 
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<'todos' | ProcessStatus>(() => {
-    if (typeof window === 'undefined') return 'todos';
-    const savedFilter = window.localStorage.getItem(PROCESS_FILTER_STORAGE_KEY);
-    return savedFilter === 'todos' || savedFilter === 'critico' || savedFilter === 'atencao' || savedFilter === 'normal'
-      ? savedFilter
-      : 'todos';
-  });
+  // Filtro SEMPRE inicia em 'todos' — não persiste mais no localStorage
+  const [filter, setFilter] = useState<'todos' | ProcessStatus>('todos');
   const [sortBy, setSortBy] = useState<ProcessSort>(() => {
     if (typeof window === 'undefined') return 'urgencia';
-    const savedSort = window.localStorage.getItem(PROCESS_SORT_STORAGE_KEY);
-    return savedSort === 'urgencia' || savedSort === 'movimentacao' || savedSort === 'numero'
-      ? savedSort
-      : 'urgencia';
+    const saved = window.localStorage.getItem(PROCESS_SORT_STORAGE_KEY);
+    return saved === 'urgencia' || saved === 'movimentacao' || saved === 'numero' ? saved : 'urgencia';
   });
-
-  useEffect(() => {
-    window.localStorage.setItem(PROCESS_FILTER_STORAGE_KEY, filter);
-  }, [filter]);
 
   useEffect(() => {
     window.localStorage.setItem(PROCESS_SORT_STORAGE_KEY, sortBy);
@@ -44,30 +32,34 @@ export function ProcessListPage() {
 
   const filteredProcesses = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    const matchingProcesses = processes.filter((process) => {
-      const matchesFilter = filter === 'todos' || process.status === filter;
+    const matching = processes.filter((p) => {
+      const matchesFilter = filter === 'todos' || p.status === filter;
       const matchesSearch =
         !normalized ||
-        process.number.toLowerCase().includes(normalized) ||
-        process.claimant.toLowerCase().includes(normalized) ||
-        process.defendant.toLowerCase().includes(normalized);
+        p.number.toLowerCase().includes(normalized) ||
+        p.claimant.toLowerCase().includes(normalized) ||
+        p.defendant.toLowerCase().includes(normalized);
       return matchesFilter && matchesSearch;
     });
 
-    return [...matchingProcesses].sort((a, b) => {
+    return [...matching].sort((a, b) => {
       if (sortBy === 'numero') {
         return a.number.localeCompare(b.number, 'pt-BR', { numeric: true, sensitivity: 'base' });
       }
-
       const dateDiff = parsePtBrDateTime(b.latestMovementAt) - parsePtBrDateTime(a.latestMovementAt);
-      if (sortBy === 'movimentacao') {
-        return dateDiff;
-      }
-
+      if (sortBy === 'movimentacao') return dateDiff;
       const urgencyDiff = STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status];
       return urgencyDiff !== 0 ? urgencyDiff : dateDiff;
     });
   }, [filter, processes, query, sortBy]);
+
+  const hasActiveFilter = filter !== 'todos' || query.trim() !== '';
+
+  function clearAll() {
+    setQuery('');
+    setFilter('todos');
+    setSortBy('urgencia');
+  }
 
   return (
     <AppLayout>
@@ -107,14 +99,10 @@ export function ProcessListPage() {
               Não foi possível carregar os processos agora.
             </p>
             <p className="text-sm text-slate-600 mt-2">
-              Verifique sua conexão e tente novamente. Se o problema persistir, acesse o dashboard para continuar.
+              Verifique sua conexão e tente novamente.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={reload}
-                className="btn-primary px-4 py-2 text-sm font-semibold"
-              >
+              <button type="button" onClick={reload} className="btn-primary px-4 py-2 text-sm font-semibold">
                 Tentar novamente
               </button>
               <button
@@ -135,7 +123,7 @@ export function ProcessListPage() {
                   <input
                     type="search"
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(e) => setQuery(e.target.value)}
                     placeholder="Buscar por número do processo, autor ou réu..."
                     className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                   />
@@ -148,7 +136,7 @@ export function ProcessListPage() {
                       type="button"
                       onClick={() => setFilter(option)}
                       className={[
-                        'px-3 py-2 rounded-xl text-xs font-semibold border',
+                        'px-3 py-2 rounded-xl text-xs font-semibold border transition-colors',
                         filter === option
                           ? 'bg-blue-600 text-white border-blue-600'
                           : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300',
@@ -159,13 +147,11 @@ export function ProcessListPage() {
                   ))}
 
                   <div className="min-w-0">
-                    <label htmlFor="process-sort" className="sr-only">
-                      Ordenar processos
-                    </label>
+                    <label htmlFor="process-sort" className="sr-only">Ordenar processos</label>
                     <select
                       id="process-sort"
                       value={sortBy}
-                      onChange={(event) => setSortBy(event.target.value as ProcessSort)}
+                      onChange={(e) => setSortBy(e.target.value as ProcessSort)}
                       className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                     >
                       <option value="urgencia">Mais urgente</option>
@@ -173,9 +159,24 @@ export function ProcessListPage() {
                       <option value="numero">Número do processo</option>
                     </select>
                   </div>
+
+                  {hasActiveFilter && (
+                    <button
+                      type="button"
+                      onClick={clearAll}
+                      className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <X size={12} />
+                      Limpar
+                    </button>
+                  )}
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-3">Filtros e ordenação salvos neste dispositivo.</p>
+
+              <p className="text-xs text-slate-500 mt-3">
+                {processes.length} processo{processes.length !== 1 ? 's' : ''} carregado{processes.length !== 1 ? 's' : ''}
+                {hasActiveFilter && ` · ${filteredProcesses.length} exibido${filteredProcesses.length !== 1 ? 's' : ''} com filtro ativo`}
+              </p>
             </section>
 
             <section className="space-y-3">
@@ -183,18 +184,10 @@ export function ProcessListPage() {
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center">
                   <p className="text-sm font-semibold text-slate-800">Nenhum processo encontrado com os filtros atuais.</p>
                   <p className="text-sm text-slate-500 mt-1">
-                    Limpe os filtros para voltar ao monitoramento completo ou retorne ao dashboard.
+                    Limpe os filtros para ver todos os {processes.length} processos.
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuery('');
-                        setFilter('todos');
-                        setSortBy('urgencia');
-                      }}
-                      className="btn-primary px-4 py-2 text-sm font-semibold"
-                    >
+                    <button type="button" onClick={clearAll} className="btn-primary px-4 py-2 text-sm font-semibold">
                       Limpar filtros
                     </button>
                     <button
@@ -208,13 +201,16 @@ export function ProcessListPage() {
                 </div>
               ) : (
                 filteredProcesses.map((process) => (
-                  <article key={process.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
+                  <article key={process.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
                     <div className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-5">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <h2 className="font-mono text-sm sm:text-base font-semibold text-slate-900 break-all">
-                            {process.number} ({process.court})
+                            {process.number}
                           </h2>
+                          <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                            {process.court}
+                          </span>
                           <span className={`text-[11px] font-semibold border rounded-full px-2 py-0.5 ${statusBadgeClasses(process.status)}`}>
                             {statusLabel(process.status)}
                           </span>
@@ -224,14 +220,14 @@ export function ProcessListPage() {
                         </p>
                         <p className="text-xs text-slate-500 mt-1">{process.district}</p>
                         <p className="text-sm text-slate-500 mt-2">
-                          Última movimentação: {process.latestMovementAt} · {process.latestMovementTitle}
+                          Última mov.: {process.latestMovementAt} · {process.latestMovementTitle}
                         </p>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => navigate(`/processos/${process.id}`)}
-                        className="btn-primary px-4 py-2.5 text-sm font-semibold self-start"
+                        className="btn-primary px-4 py-2.5 text-sm font-semibold self-start shrink-0"
                       >
                         Abrir processo
                       </button>

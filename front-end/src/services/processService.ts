@@ -1,5 +1,3 @@
-import { api } from './api';
-
 export type ProcessStatus = 'critico' | 'atencao' | 'normal';
 
 export interface ProcessItem {
@@ -28,7 +26,7 @@ interface ProcessDataset {
   checklistByProcess: Record<string, string[]>;
 }
 
-function cloneData<T>(value: T): T {
+function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
@@ -115,6 +113,7 @@ const DATASET: ProcessDataset = {
 
   movementsByProcess: {
     '1002345-67-2023-8-26-0100': [
+<<<<<<< HEAD
       {
         id: 'm1a',
         datetime: '08/05/2026 - 14:30',
@@ -260,6 +259,39 @@ const DATASET: ProcessDataset = {
         description: 'Ação de obrigação de fazer contra plano de saúde para custeio de cirurgia.',
         sourceUrl: 'https://esaj.tjsp.jus.br',
       },
+=======
+      { id: 'm1a', datetime: '08/05/2026 - 14:30', title: 'Expedição de Intimação', description: 'Intimação para manifestação sobre o laudo pericial juntado às fls. 450/480. Prazo: 5 dias úteis.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+      { id: 'm1b', datetime: '02/05/2026 - 09:15', title: 'Juntada de Laudo Pericial', description: 'Laudo técnico do perito judicial Sr. Marcos Pontes — conclusão favorável ao autor.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+      { id: 'm1c', datetime: '18/04/2026 - 16:45', title: 'Decisão — Saneador', description: 'Deferida a produção de prova pericial e documental.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+      { id: 'm1d', datetime: '03/04/2026 - 10:00', title: 'Petição Protocolada — Impugnação à Contestação', description: 'Peça protocolada pelo autor rebatendo os argumentos da defesa do réu.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+    ],
+    '1045231-88-2024-8-26-0100': [
+      { id: 'm2a', datetime: '07/05/2026 - 10:10', title: 'Juntada de Documento pelo Réu', description: 'Seguradora juntou apólice e cálculo de cobertura contestando os valores pleiteados.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+      { id: 'm2b', datetime: '22/04/2026 - 15:00', title: 'Contestação Protocolada', description: 'Réu protocolou contestação dentro do prazo. Aguarda réplica do autor.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+      { id: 'm2c', datetime: '01/04/2026 - 09:30', title: 'Despacho — Citação Realizada', description: 'Certidão de citação juntada. Prazo de 15 dias para contestar iniciado.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+    ],
+    '2010456-90-2025-8-26-0001': [
+      { id: 'm3a', datetime: '05/05/2026 - 09:40', title: 'Conclusos para despacho', description: 'Processo enviado ao juiz para análise e despacho sobre requerimento de tutela antecipada.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+      { id: 'm3b', datetime: '28/04/2026 - 11:20', title: 'Petição — Tutela Antecipada', description: 'Autor requereu tutela antecipada para obrigar réu a cumprir contrato imediatamente.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+    ],
+    '5003821-44-2022-8-26-0100': [
+      { id: 'm4a', datetime: '09/05/2026 - 08:00', title: 'Decisão — Agravo de Instrumento admitido', description: 'Tribunal admitiu o agravo. Prazo de 15 dias para contrarrazões. URGENTE.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+      { id: 'm4b', datetime: '30/04/2026 - 14:00', title: 'Interposição de Agravo de Instrumento', description: 'Réu interpôs agravo contra decisão que deferiu tutela de urgência ao autor.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+      { id: 'm4c', datetime: '22/04/2026 - 10:30', title: 'Decisão — Tutela de Urgência Deferida', description: 'Juiz deferiu tutela de urgência determinando entrega imediata das chaves do imóvel.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+    ],
+    '0015673-21-2024-4-03-6100': [
+      { id: 'm5a', datetime: '06/05/2026 - 16:20', title: 'Citação — prazo 15 dias para contestar', description: 'União Federal citada para apresentar contestação em ação de repetição de indébito tributário.', sourceUrl: 'https://www.trf3.jus.br' },
+      { id: 'm5b', datetime: '10/04/2026 - 09:00', title: 'Despacho — Petição Inicial Recebida', description: 'Juíza determinou emenda à inicial para juntar documentos comprobatórios do recolhimento.', sourceUrl: 'https://www.trf3.jus.br' },
+    ],
+    '1000998-55-2023-5-02-0461': [
+      { id: 'm6a', datetime: '02/05/2026 - 11:55', title: 'Pauta de audiência designada', description: 'Audiência de instrução e julgamento marcada para 15/07/2026 às 14h.', sourceUrl: 'https://www.trt2.jus.br' },
+      { id: 'm6b', datetime: '14/04/2026 - 10:00', title: 'Contestação da Reclamada', description: 'Empresa apresentou contestação negando vínculo empregatício e verbas rescisórias.', sourceUrl: 'https://www.trt2.jus.br' },
+      { id: 'm6c', datetime: '01/03/2026 - 09:00', title: 'Reclamação Trabalhista Distribuída', description: 'Reclamação por verbas rescisórias, horas extras e dano moral distribuída à 46ª VT.', sourceUrl: 'https://www.trt2.jus.br' },
+    ],
+    '3021456-78-2025-8-26-0053': [
+      { id: 'm7a', datetime: '28/04/2026 - 14:00', title: 'Despacho — aguardando laudo médico', description: 'Juiz determinou que autor junte laudo médico atualizado em 30 dias.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+      { id: 'm7b', datetime: '15/04/2026 - 11:00', title: 'Petição Inicial Recebida', description: 'Ação de obrigação de fazer contra plano de saúde para custeio de cirurgia.', sourceUrl: 'https://esaj.tjsp.jus.br' },
+>>>>>>> develop
     ],
   },
 
@@ -294,14 +326,14 @@ const DATASET: ProcessDataset = {
 
 export const processService = {
   async listProcesses(): Promise<ProcessItem[]> {
-    return api.get('/processes', () => cloneData(DATASET.processes));
+    return clone(DATASET.processes);
   },
 
   async listMovementsMap(): Promise<Record<string, ProcessMovement[]>> {
-    return api.get('/processes/movements', () => cloneData(DATASET.movementsByProcess));
+    return clone(DATASET.movementsByProcess);
   },
 
   async listChecklistMap(): Promise<Record<string, string[]>> {
-    return api.get('/processes/checklist', () => cloneData(DATASET.checklistByProcess));
+    return clone(DATASET.checklistByProcess);
   },
 };

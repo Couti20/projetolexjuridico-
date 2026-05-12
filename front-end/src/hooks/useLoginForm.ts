@@ -10,6 +10,10 @@ import { useState, useCallback, type FormEvent } from 'react';
 import type { AuthUser, LoginFormData, LoginFormErrors, LoginStatus } from '../types/auth';
 import { authService } from '../services/authService';
 import { ApiError, setAuthToken } from '../services/api';
+<<<<<<< HEAD
+=======
+import { isAdminLogin } from '../services/adminAuth';
+>>>>>>> develop
 
 const INITIAL_FORM: LoginFormData = {
   email: '',
@@ -19,12 +23,13 @@ const INITIAL_FORM: LoginFormData = {
 
 function validateForm(data: LoginFormData): LoginFormErrors {
   const errors: LoginFormErrors = {};
+  const adminShortcut = isAdminLogin(data.email, data.password);
 
-  if (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+  if (!adminShortcut && (!data.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))) {
     errors.email = 'Informe um e-mail válido.';
   }
 
-  if (!data.password || data.password.length < 6) {
+  if (!adminShortcut && (!data.password || data.password.length < 6)) {
     errors.password = 'Informe sua senha.';
   }
 

@@ -67,6 +67,10 @@ function readStoredSession(): AuthSession | null {
         fullName:       user.fullName,
         email:          user.email,
         oab:            typeof user.oab === 'string' ? user.oab : undefined,
+<<<<<<< HEAD
+=======
+        isAdmin:        typeof user.isAdmin === 'boolean' ? user.isAdmin : false,
+>>>>>>> develop
         setupCompleted: typeof user.setupCompleted === 'boolean' ? user.setupCompleted : false,
       },
       authenticatedAt,
@@ -131,7 +135,11 @@ export function AuthProvider({ children, onUnauthorized }: AuthProviderProps) {
   const login = useCallback((user: AuthUser) => {
     // setupCompleted vem diretamente do back-end (campo no AuthUser)
     // Não recalculamos mais a partir do oab nem do localStorage
+<<<<<<< HEAD
     const setupCompleted = user.setupCompleted ?? false;
+=======
+    const setupCompleted = user.isAdmin ? true : (user.setupCompleted ?? false);
+>>>>>>> develop
 
     const nextSession: AuthSession = {
       user,

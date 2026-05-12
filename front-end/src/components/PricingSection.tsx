@@ -71,3 +71,5 @@ export function PricingSection({ onNavigateSignUp, onNavigateLogin }: PricingSec
     </section>
   );
 }
+
+export default PricingSection;

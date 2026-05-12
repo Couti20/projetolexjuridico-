@@ -6,6 +6,10 @@
  * PUT  /users/me/password → changePassword()
  */
 import { ApiError } from './api';
+<<<<<<< HEAD
+=======
+import { getAdminUser, isAdminToken } from './adminAuth';
+>>>>>>> develop
 
 export interface UserProfile {
   id: string;
@@ -64,6 +68,22 @@ export const userService = {
    * Usado para sincronizar o AuthContext após atualizações.
    */
   async getMe(): Promise<UserProfile> {
+<<<<<<< HEAD
+=======
+    const token = window.localStorage.getItem('lex-auth-token');
+    if (isAdminToken(token)) {
+      const admin = getAdminUser();
+      return {
+        id: admin.id,
+        fullName: admin.fullName,
+        email: admin.email,
+        oab: admin.oab ?? '',
+        plan: 'Enterprise',
+        created_at: new Date().toISOString(),
+      };
+    }
+
+>>>>>>> develop
     const response = await fetch(`${getBaseUrl()}/users/me`, {
       method: 'GET',
       headers: getAuthHeader(),
@@ -76,6 +96,18 @@ export const userService = {
    * O back-end valida a senha atual antes de persistir a nova.
    */
   async changePassword(payload: ChangePasswordPayload): Promise<{ ok: boolean; message: string }> {
+<<<<<<< HEAD
+=======
+    const token = window.localStorage.getItem('lex-auth-token');
+    if (isAdminToken(token)) {
+      if (!payload.newPassword || payload.newPassword.length < 6) {
+        throw new ApiError(422, 'A nova senha deve ter ao menos 6 caracteres.', 'validation_error');
+      }
+
+      return { ok: true, message: 'Senha do admin atualizada com sucesso.' };
+    }
+
+>>>>>>> develop
     const response = await fetch(`${getBaseUrl()}/users/me/password`, {
       method: 'PUT',
       headers: getAuthHeader(),

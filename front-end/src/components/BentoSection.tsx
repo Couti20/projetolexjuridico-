@@ -79,3 +79,5 @@ export function BentoSection() {
     </section>
   );
 }
+
+export default BentoSection;

@@ -123,4 +123,20 @@ CREATE TABLE IF NOT EXISTS monitorings (
       FOREIGN KEY (process_id) REFERENCES processes(id)
       ON DELETE CASCADE
       ON UPDATE CASCADE
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+============================================================
+CREATE TABLE IF NOT EXISTS token_blacklist (
+    jti         VARCHAR(36)  NOT NULL PRIMARY KEY,
+    user_id     VARCHAR(36)  NOT NULL,
+    expires_at  DATETIME     NOT NULL,
+    revoked_at  DATETIME     NOT NULL,
+    INDEX ix_token_blacklist_jti      (jti),
+    INDEX ix_token_blacklist_expires_at (expires_at),
+    INDEX ix_token_blacklist_user_id   (user_id)
+);
+>>>>>>> develop

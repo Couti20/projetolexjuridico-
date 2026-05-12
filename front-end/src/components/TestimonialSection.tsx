@@ -28,3 +28,5 @@ export function TestimonialSection() {
     </section>
   );
 }
+
+export default TestimonialSection;
