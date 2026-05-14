@@ -10,10 +10,9 @@ import { useState, useCallback, type FormEvent } from 'react';
 import type { AuthUser, LoginFormData, LoginFormErrors, LoginStatus } from '../types/auth';
 import { authService } from '../services/authService';
 import { ApiError, setAuthToken } from '../services/api';
-<<<<<<< HEAD
-=======
+
 import { isAdminLogin } from '../services/adminAuth';
->>>>>>> develop
+
 
 const INITIAL_FORM: LoginFormData = {
   email: '',

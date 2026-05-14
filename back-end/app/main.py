@@ -15,10 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.middleware import SecurityHeadersMiddleware
 from app.routers import auth, processes, dashboard, tasks, users
-<<<<<<< HEAD
-=======
+
 from app.routers import escavador_webhook  # integração Escavador
->>>>>>> develop
 
 # ── SlowAPI (rate limiting global) ────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
@@ -55,21 +53,20 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID"],
 )
 
-# ── Routers ───────────────────────────────────────────────────────────────────
-<<<<<<< HEAD
+# ── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(auth.router,      prefix="/auth",      tags=["Auth"])
 app.include_router(users.router,     prefix="/users",     tags=["Users"])
 app.include_router(processes.router, prefix="/processes", tags=["Processes"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(tasks.router,     prefix="/tasks",     tags=["Tasks"])
-=======
+
 app.include_router(auth.router,               prefix="/auth",      tags=["Auth"])
 app.include_router(users.router,              prefix="/users",     tags=["Users"])
 app.include_router(processes.router,          prefix="/processes", tags=["Processes"])
 app.include_router(dashboard.router,          prefix="/dashboard", tags=["Dashboard"])
 app.include_router(tasks.router,              prefix="/tasks",     tags=["Tasks"])
 app.include_router(escavador_webhook.router)  # prefixo próprio: /api/v1/escavador
->>>>>>> develop
+
 
 
 @app.get("/health", tags=["Health"])

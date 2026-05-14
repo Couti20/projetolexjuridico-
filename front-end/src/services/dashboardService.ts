@@ -1,8 +1,5 @@
 import { api } from './api';
-<<<<<<< HEAD
-=======
 import { isAdminToken } from './adminAuth';
->>>>>>> develop
 
 export interface DashboardWeekLoad {
   day: string;
@@ -32,8 +29,6 @@ export const dashboardService = {
    * Backend: GET /dashboard
    */
   async getOverview(): Promise<DashboardOverview> {
-<<<<<<< HEAD
-=======
     const token = window.localStorage.getItem('lex-auth-token');
     if (isAdminToken(token)) {
       return {
@@ -59,8 +54,6 @@ export const dashboardService = {
         },
       };
     }
-
->>>>>>> develop
     return api.get<DashboardOverview>('/dashboard');
   },
 };
