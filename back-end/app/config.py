@@ -11,6 +11,11 @@ class Settings(BaseSettings):
 
     # MySQL via XAMPP (PyMySQL)
     DATABASE_URL: str = "mysql+pymysql://root:@localhost:3306/lex_db"
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE_SECONDS: int = 300
+    DB_POOL_PRE_PING: bool = True
 
     # API Escavador
     ESCAVADOR_API_KEY: str = ""

@@ -9,3 +9,8 @@ coverage/
 
 # Python venv
 /back-end/.venv/
+
+# Python cache/artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/

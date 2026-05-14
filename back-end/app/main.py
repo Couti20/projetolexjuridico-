@@ -59,12 +59,6 @@ app.include_router(users.router,     prefix="/users",     tags=["Users"])
 app.include_router(processes.router, prefix="/processes", tags=["Processes"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(tasks.router,     prefix="/tasks",     tags=["Tasks"])
-
-app.include_router(auth.router,               prefix="/auth",      tags=["Auth"])
-app.include_router(users.router,              prefix="/users",     tags=["Users"])
-app.include_router(processes.router,          prefix="/processes", tags=["Processes"])
-app.include_router(dashboard.router,          prefix="/dashboard", tags=["Dashboard"])
-app.include_router(tasks.router,              prefix="/tasks",     tags=["Tasks"])
 app.include_router(escavador_webhook.router)  # prefixo próprio: /api/v1/escavador
 
 

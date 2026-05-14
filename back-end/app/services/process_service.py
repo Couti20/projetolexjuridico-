@@ -4,6 +4,7 @@ Mock removido — retorna lista vazia enquanto Escavador não está integrado.
 O front trata lista vazia com estado visual adequado (empty state).
 """
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.models.process import Process
 from app.models.monitoring import Monitoring
@@ -16,29 +17,34 @@ def list_processes_for_user(db: Session, user_id: str) -> list[ProcessItem]:
     Retorna lista vazia se nenhum processo foi vinculado ainda.
     TODO: quando Escavador estiver integrado, buscar atualizações em tempo real.
     """
-    monitorings = (
-        db.query(Monitoring)
-        .filter(Monitoring.user_id == user_id, Monitoring.is_active == True)
-        .all()
+    stmt = (
+        select(
+            Process.id,
+            Process.number,
+            Process.court,
+            Process.claimant,
+            Process.defendant,
+            Process.district,
+            Process.status,
+            Process.latest_movement_at,
+            Process.latest_movement_title,
+        )
+        .join(Monitoring, Monitoring.process_id == Process.id)
+        .where(Monitoring.user_id == user_id, Monitoring.is_active.is_(True))
     )
-
-    if not monitorings:
-        return []
-
-    process_ids = [m.process_id for m in monitorings]
-    processes = db.query(Process).filter(Process.id.in_(process_ids)).all()
+    rows = db.execute(stmt).all()
 
     return [
         ProcessItem(
-            id=p.id,
-            number=p.number,
-            court=p.court,
-            claimant=p.claimant,
-            defendant=p.defendant,
-            district=p.district,
-            status=p.status,
-            latestMovementAt=p.latest_movement_at or "",
-            latestMovementTitle=p.latest_movement_title or "",
+            id=row.id,
+            number=row.number,
+            court=row.court,
+            claimant=row.claimant,
+            defendant=row.defendant,
+            district=row.district,
+            status=row.status,
+            latestMovementAt=row.latest_movement_at or "",
+            latestMovementTitle=row.latest_movement_title or "",
         )
-        for p in processes
+        for row in rows
     ]
