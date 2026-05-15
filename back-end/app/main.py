@@ -5,9 +5,10 @@ Ordem de registro dos middlewares (LIFO — último registrado, primeiro executa
 2. CORSMiddleware             → trata preflight e valida origens
 3. SlowAPI state              → disponibiliza o limiter para os routers
 """
-from fastapi import FastAPI
+import re
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,11 +16,59 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.middleware import SecurityHeadersMiddleware
 from app.routers import auth, processes, dashboard, tasks, users
-
-from app.routers import escavador_webhook  # integração Escavador
+from app.routers import escavador_webhook
 
 # ── SlowAPI (rate limiting global) ────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
+
+
+def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    """Retorna 429 com retryAfter em segundos e mensagem legível.
+
+    O SlowAPI preenche exc.retry_after (int, segundos) quando disponível.
+    Também tenta extrair o número de segundos do texto do limite (ex: '5/minute').
+    """
+    retry_after: int = 0
+
+    # 1. Tenta pelo atributo do SlowAPI
+    raw = getattr(exc, 'retry_after', None)
+    if isinstance(raw, int) and raw > 0:
+        retry_after = raw
+    elif isinstance(raw, str):
+        try:
+            retry_after = int(raw)
+        except ValueError:
+            pass
+
+    # 2. Fallback: extrai segundos do detail (ex: "5 per 1 minute")
+    if retry_after == 0:
+        detail_str = str(exc.detail) if hasattr(exc, 'detail') else ''
+        m = re.search(r'(\d+)\s*(?:per\s*1\s*)?minute', detail_str, re.IGNORECASE)
+        if m:
+            retry_after = int(m.group(1)) * 60
+        else:
+            retry_after = 60  # fallback genérico de 1 minuto
+
+    if retry_after >= 60:
+        minutes = retry_after // 60
+        secs    = retry_after % 60
+        if secs > 0:
+            tempo = f"{minutes} minuto(s) e {secs} segundo(s)"
+        else:
+            tempo = f"{minutes} minuto(s)"
+    else:
+        tempo = f"{retry_after} segundo(s)"
+
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": f"Muitas tentativas. Tente novamente em {tempo}.",
+            "retryAfter": retry_after,
+            "lockedUntil": None,
+        },
+        headers={"Retry-After": str(retry_after)},
+    )
+
 
 app = FastAPI(
     title="Lex API",
@@ -31,17 +80,9 @@ app = FastAPI(
 
 # ── Estado do rate limiter ────────────────────────────────────────────────────
 app.state.limiter = limiter
-app.add_exception_handler(
-    RateLimitExceeded,
-    lambda request, exc: JSONResponse(
-        status_code=429,
-        content={
-            "detail": "Muitas tentativas. Aguarde um momento e tente novamente."
-        },
-    ),
-)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
-# ── Middlewares (ordem importa: último adicionado = primeiro executado) ───────
+# ── Middlewares (ordem importa: último adicionado = primeiro executado) ────────
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
@@ -53,14 +94,13 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID"],
 )
 
-# ── Routers ──────────────────────────────────────────────────────────────────
+# ── Routers ─────────────────────────────────────────────────────────────────
 app.include_router(auth.router,      prefix="/auth",      tags=["Auth"])
 app.include_router(users.router,     prefix="/users",     tags=["Users"])
 app.include_router(processes.router, prefix="/processes", tags=["Processes"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(tasks.router,     prefix="/tasks",     tags=["Tasks"])
-app.include_router(escavador_webhook.router)  # prefixo próprio: /api/v1/escavador
-
+app.include_router(escavador_webhook.router)
 
 
 @app.get("/health", tags=["Health"])
