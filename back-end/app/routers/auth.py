@@ -3,10 +3,15 @@
 Melhorias de segurança:
 - Logout real: jti do token é inserido na blacklist do banco.
 - Rate limiting via SlowAPI: 5 tentativas/min no login, 3/min no register.
-- Todos os erros de autenticação retornam a mesma mensagem genérica
-  para não vazar se o e-mail existe ou não (user enumeration prevention).
-- Removido _banco_acessivel(): dupla conexão desnecessária. O SQLAlchemy
-  já lança SQLAlchemyError se o banco estiver offline — tratado nos excepts.
+- Bloqueio progressivo por e-mail (login_attempt_service):
+    1-4 falhas  → sem bloqueio
+    5-9 falhas  → bloqueado 5 minutos
+    10-14 falhas → bloqueado 15 minutos
+    15-19 falhas → bloqueado 30 minutos
+    20+ falhas  → bloqueado 60 minutos
+  O contador SÓ é zerado após login bem-sucedido.
+- Todos os erros de autenticação retornam mensagem genérica
+  para não vazar se o e-mail existe (user enumeration prevention).
 """
 from datetime import datetime, timezone
 from typing import Annotated
@@ -28,6 +33,11 @@ from app.services.user_service import (
     get_user_by_email,
     to_auth_user,
     verify_password,
+)
+from app.services.login_attempt_service import (
+    check_lockout,
+    register_failure,
+    reset_on_success,
 )
 
 router = APIRouter()
@@ -118,8 +128,11 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
 def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
     """
     Autentica o advogado.
-    Rate limit: 5 tentativas por minuto por IP (proteção brute force).
-    Mensagem de erro genérica (não revela se o e-mail existe).
+
+    Proteções ativas:
+    1. Rate limit por IP (SlowAPI): 5 req/min
+    2. Bloqueio progressivo por e-mail (login_attempt_service):
+       acumula falhas e aumenta o tempo de bloqueio gradativamente.
     """
     invalid_credentials = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -127,6 +140,24 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    # ── 1. Verifica se o e-mail está bloqueado ────────────────────────────────
+    is_locked, remaining_seconds = check_lockout(db, payload.email)
+    if is_locked:
+        minutes = remaining_seconds // 60
+        seconds = remaining_seconds % 60
+        if minutes > 0:
+            time_msg = f"{minutes} minuto(s) e {seconds} segundo(s)" if seconds else f"{minutes} minuto(s)"
+        else:
+            time_msg = f"{seconds} segundo(s)"
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Conta temporariamente bloqueada por excesso de tentativas. "
+                f"Tente novamente em {time_msg}."
+            ),
+        )
+
+    # ── 2. Busca o usuário ────────────────────────────────────────────────────
     try:
         user = get_user_by_email(db, payload.email)
     except SQLAlchemyError:
@@ -135,17 +166,31 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
             detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
         )
 
-    if not user:
+    # ── 3. Valida credenciais ─────────────────────────────────────────────────
+    if not user or not verify_password(payload.password, user.hashed_password):
+        # Registra a falha e obtém o novo estado do bloqueio
+        failed_count, lockout_seconds = register_failure(db, payload.email)
+
+        if lockout_seconds > 0:
+            minutes = lockout_seconds // 60
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    f"E-mail ou senha incorretos. "
+                    f"Muitas tentativas falhas — conta bloqueada por {minutes} minuto(s)."
+                ),
+            )
         raise invalid_credentials
 
-    if not verify_password(payload.password, user.hashed_password):
-        raise invalid_credentials
-
+    # ── 4. Conta desativada ───────────────────────────────────────────────────
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Conta desativada. Entre em contato com o suporte.",
         )
+
+    # ── 5. Login bem-sucedido → zera contador ─────────────────────────────────
+    reset_on_success(db, payload.email)
 
     auth_user = to_auth_user(user)
     token = create_access_token({"sub": auth_user.id, "email": auth_user.email})
