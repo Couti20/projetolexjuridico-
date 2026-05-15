@@ -47,7 +47,7 @@ router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 
-# ── Helpers ─────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _decode_jti(token: str) -> tuple[str | None, datetime | None]:
     """Extrai jti e exp do JWT sem validar assinatura (token já foi validado antes)."""
@@ -82,8 +82,8 @@ def _lockout_response(detail: str, retry_after: int, locked_until: str | None) -
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         content={
             "detail": detail,
-            "retryAfter": retry_after,       # segundos restantes de bloqueio
-            "lockedUntil": locked_until,     # ISO 8601 — ex: "2026-05-14T22:15:00+00:00"
+            "retryAfter": retry_after,
+            "lockedUntil": locked_until,
         },
         headers={"Retry-After": str(retry_after)},
     )
@@ -166,8 +166,13 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
       - lockedUntil → data/hora exata em ISO 8601
       - header Retry-After (padrão HTTP)
     """
-    # ── 1. Verifica se o e-mail já está bloqueado ───────────────────────────
-    is_locked, remaining_seconds, locked_until = check_lockout(db, payload.email)
+    # ── 1. Verifica bloqueio ativo ───────────────────────────────────────────
+    try:
+        is_locked, remaining_seconds, locked_until = check_lockout(db, payload.email)
+    except SQLAlchemyError:
+        # Tabela ainda não existe ou erro de BD → ignora bloqueio, não derruba o login
+        is_locked, remaining_seconds, locked_until = False, 0, None
+
     if is_locked:
         return _lockout_response(
             detail=f"Conta bloqueada por excesso de tentativas. Tente novamente em {_fmt_time(remaining_seconds)}.",
@@ -186,7 +191,11 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 
     # ── 3. Valida credenciais ─────────────────────────────────────────────────
     if not user or not verify_password(payload.password, user.hashed_password):
-        failed_count, lockout_seconds, locked_until_iso = register_failure(db, payload.email)
+        try:
+            failed_count, lockout_seconds, locked_until_iso = register_failure(db, payload.email)
+        except SQLAlchemyError:
+            # Tabela ainda não existe → apenas retorna credenciais inválidas
+            failed_count, lockout_seconds, locked_until_iso = 0, 0, None
 
         if lockout_seconds > 0:
             return _lockout_response(
@@ -212,7 +221,10 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
         )
 
     # ── 5. Login bem-sucedido → zera contador ─────────────────────────────────
-    reset_on_success(db, payload.email)
+    try:
+        reset_on_success(db, payload.email)
+    except SQLAlchemyError:
+        pass  # Tabela ainda não existe → ignora, login segue normalmente
 
     auth_user = to_auth_user(user)
     token = create_access_token({"sub": auth_user.id, "email": auth_user.email})
