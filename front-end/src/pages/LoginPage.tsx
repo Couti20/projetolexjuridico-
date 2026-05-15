@@ -10,6 +10,11 @@
  *   quando o setTimeout disparava.
  * - Agora: a decisão é feita usando `authenticatedUser.setupCompleted` diretamente,
  *   que é o valor que veio da API naquele mesmo tick. Não depende do estado React.
+ *
+ * Bloqueio por excesso de tentativas (429):
+ * - Exibe a mensagem do back-end com o tempo restante.
+ * - Mostra contador regressivo em segundos ao lado da mensagem.
+ * - Desabilita o botão e o formulário enquanto o contador não zera.
  */
 
 import { useEffect, useRef } from 'react';
@@ -42,7 +47,8 @@ export function LoginPage({
   const { login, isSetupCompleted } = useAuth();
   const {
     form, errors, status, serverError,
-    authenticatedUser, updateField, handleSubmit,
+    authenticatedUser, lockCountdown, isLocked,
+    updateField, handleSubmit,
   } = useLoginForm();
 
   const hasCommittedSuccess   = useRef(false);
@@ -52,8 +58,9 @@ export function LoginPage({
   useEffect(() => { navigateSetupRef.current     = onNavigateSetup;     }, [onNavigateSetup]);
   useEffect(() => { navigateDashboardRef.current  = onNavigateDashboard; }, [onNavigateDashboard]);
 
-  const isLoading = status === 'loading';
-  const isSuccess = status === 'success';
+  const isLoading  = status === 'loading';
+  const isSuccess  = status === 'success';
+  const isDisabled = isLoading || isLocked;
 
   useEffect(() => {
     if (!isSuccess) {
@@ -66,8 +73,6 @@ export function LoginPage({
     hasCommittedSuccess.current = true;
     login(authenticatedUser);
 
-    // Race condition corrigida: usa authenticatedUser.setupCompleted (valor da API)
-    // em vez de isSetupCompleted (estado React que pode estar um render atrasado).
     const userSetupCompleted = authenticatedUser.setupCompleted ?? false;
 
     const timeoutId = window.setTimeout(() => {
@@ -76,10 +81,9 @@ export function LoginPage({
       } else {
         navigateSetupRef.current();
       }
-    }, 1_500); // delay apenas para a animação de progresso
+    }, 1_500);
 
     return () => window.clearTimeout(timeoutId);
-  // isSetupCompleted mantido nas deps para que o texto de redirect na UI seja correto
   }, [authenticatedUser, isSuccess, isSetupCompleted, login]);
 
   return (
@@ -197,15 +201,29 @@ export function LoginPage({
                   <p className="text-slate-500 text-sm">Insira suas credenciais para continuar.</p>
                 </div>
 
+                {/* Mensagem de erro / bloqueio */}
                 {serverError && (
                   <motion.div
+                    key={isLocked ? 'locked' : 'error'}
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     role="alert"
-                    className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                    className={`mb-5 flex items-start gap-2 rounded-xl border px-4 py-3 text-sm ${
+                      isLocked
+                        ? 'border-amber-200 bg-amber-50 text-amber-800'
+                        : 'border-red-200 bg-red-50 text-red-700'
+                    }`}
                   >
-                    <span aria-hidden="true">⚠️</span>
-                    <span>{serverError}</span>
+                    <span aria-hidden="true">{isLocked ? '⏳' : '⚠️'}</span>
+                    <span className="flex-1">
+                      {serverError}
+                      {isLocked && (
+                        <span className="block mt-1 font-semibold">
+                          Tente novamente em{' '}
+                          <span className="tabular-nums">{lockCountdown}s</span>
+                        </span>
+                      )}
+                    </span>
                   </motion.div>
                 )}
 
@@ -219,7 +237,7 @@ export function LoginPage({
                     value={form.email}
                     onChange={(e) => updateField('email', e.target.value)}
                     error={errors.email}
-                    disabled={isLoading}
+                    disabled={isDisabled}
                   />
 
                   <div className="space-y-1.5">
@@ -231,7 +249,7 @@ export function LoginPage({
                       value={form.password}
                       onChange={(e) => updateField('password', e.target.value)}
                       error={errors.password}
-                      disabled={isLoading}
+                      disabled={isDisabled}
                     />
                     <div className="flex justify-end">
                       <button
@@ -250,7 +268,7 @@ export function LoginPage({
                       type="checkbox"
                       checked={form.rememberMe}
                       onChange={(e) => updateField('rememberMe', e.target.checked)}
-                      disabled={isLoading}
+                      disabled={isDisabled}
                       className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
                     />
                     <span className="text-sm text-slate-600">Lembrar-me neste dispositivo</span>
@@ -258,7 +276,7 @@ export function LoginPage({
 
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isDisabled}
                     className="w-full btn-primary py-3.5 font-semibold text-base flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                   >
                     {isLoading ? (
@@ -268,6 +286,11 @@ export function LoginPage({
                           aria-hidden="true"
                         />
                         Entrando...
+                      </>
+                    ) : isLocked ? (
+                      <>
+                        <span aria-hidden="true">⏳</span>
+                        Aguarde {lockCountdown}s…
                       </>
                     ) : (
                       'Entrar no Sistema'
