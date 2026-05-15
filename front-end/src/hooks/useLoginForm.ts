@@ -4,15 +4,14 @@
  * - Validação síncrona
  * - Submissão (pronta para conectar à API futura)
  * - Feedback de status e erro de servidor
+ * - Contador regressivo quando a conta está bloqueada (429)
  */
 
-import { useState, useCallback, type FormEvent } from 'react';
+import { useState, useCallback, useEffect, useRef, type FormEvent } from 'react';
 import type { AuthUser, LoginFormData, LoginFormErrors, LoginStatus } from '../types/auth';
 import { authService } from '../services/authService';
 import { ApiError, setAuthToken } from '../services/api';
-
 import { isAdminLogin } from '../services/adminAuth';
-
 
 const INITIAL_FORM: LoginFormData = {
   email: '',
@@ -42,13 +41,41 @@ export function useLoginForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
 
+  // Contador regressivo de bloqueio (segundos restantes)
+  const [lockCountdown, setLockCountdown] = useState<number>(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Inicia o contador quando bloqueado
+  const startCountdown = useCallback((seconds: number) => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setLockCountdown(seconds);
+    countdownRef.current = setInterval(() => {
+      setLockCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current!);
+          countdownRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  // Limpa o intervalo ao desmontar
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, []);
+
+  const isLocked = lockCountdown > 0;
+
   const updateField = useCallback(
     <K extends keyof LoginFormData>(field: K, value: LoginFormData[K]) => {
       setForm((prev) => ({ ...prev, [field]: value }));
       if (errors[field as keyof LoginFormErrors]) {
         setErrors((prev) => ({ ...prev, [field]: undefined }));
       }
-      // Limpa erro de servidor ao editar qualquer campo
       if (serverError) setServerError(null);
       if (authenticatedUser) setAuthenticatedUser(null);
     },
@@ -58,6 +85,10 @@ export function useLoginForm() {
   const handleSubmit = useCallback(
     async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
+
+      // Bloqueia novo envio enquanto o contador estiver ativo
+      if (isLocked) return;
+
       setServerError(null);
       setAuthenticatedUser(null);
 
@@ -80,16 +111,40 @@ export function useLoginForm() {
         setStatus('success');
       } catch (error) {
         setStatus('error');
-        if (error instanceof ApiError && error.code === 'invalid_credentials') {
-          setServerError('E-mail ou senha incorretos. Verifique suas credenciais.');
-          return;
+
+        if (error instanceof ApiError) {
+          // 429 — conta bloqueada: mostra mensagem do back + inicia contador
+          if (error.status === 429) {
+            if (error.retryAfter && error.retryAfter > 0) {
+              startCountdown(error.retryAfter);
+            }
+            // A mensagem já vem formatada do back-end (ex: "bloqueada por 5 minuto(s)")
+            setServerError(error.message);
+            return;
+          }
+
+          // 401 — credenciais erradas
+          if (error.code === 'invalid_credentials' || error.status === 401) {
+            setServerError('E-mail ou senha incorretos. Verifique suas credenciais.');
+            return;
+          }
         }
 
         setServerError('Não foi possível autenticar agora. Tente novamente em instantes.');
       }
     },
-    [form],
+    [form, isLocked, startCountdown],
   );
 
-  return { form, errors, status, serverError, authenticatedUser, updateField, handleSubmit };
+  return {
+    form,
+    errors,
+    status,
+    serverError,
+    authenticatedUser,
+    lockCountdown,
+    isLocked,
+    updateField,
+    handleSubmit,
+  };
 }

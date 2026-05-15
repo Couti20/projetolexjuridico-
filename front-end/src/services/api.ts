@@ -14,12 +14,24 @@
 export class ApiError extends Error {
   status: number;
   code?: string;
+  /** Segundos restantes até poder tentar novamente (somente em respostas 429). */
+  retryAfter?: number;
+  /** Data/hora ISO em que o bloqueio expira (somente em respostas 429). */
+  lockedUntil?: string;
 
-  constructor(status: number, message: string, code?: string) {
+  constructor(
+    status: number,
+    message: string,
+    code?: string,
+    retryAfter?: number,
+    lockedUntil?: string,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.retryAfter = retryAfter;
+    this.lockedUntil = lockedUntil;
   }
 }
 
@@ -87,10 +99,16 @@ async function fetchWithAuth<T>(path: string, options: RequestInit = {}): Promis
         ? body.message
         : 'Erro inesperado.';
 
+    // Extrai retryAfter e lockedUntil presentes nas respostas 429 do back-end
+    const retryAfter   = typeof body.retryAfter  === 'number' ? body.retryAfter  : undefined;
+    const lockedUntil  = typeof body.lockedUntil === 'string' ? body.lockedUntil : undefined;
+
     throw new ApiError(
       response.status,
       detail,
       typeof body.code === 'string' ? body.code : undefined,
+      retryAfter,
+      lockedUntil,
     );
   }
 
