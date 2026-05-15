@@ -4,12 +4,14 @@ Melhorias de segurança:
 - Logout real: jti do token é inserido na blacklist do banco.
 - Rate limiting via SlowAPI: 5 tentativas/min no login, 3/min no register.
 - Bloqueio progressivo por e-mail (login_attempt_service):
-    1-4 falhas  → sem bloqueio
-    5-9 falhas  → bloqueado 5 minutos
+    1-4 falhas   → sem bloqueio
+    5-9 falhas   → bloqueado 5 minutos
     10-14 falhas → bloqueado 15 minutos
     15-19 falhas → bloqueado 30 minutos
-    20+ falhas  → bloqueado 60 minutos
+    20+ falhas   → bloqueado 60 minutos
   O contador SÓ é zerado após login bem-sucedido.
+- Erros de bloqueio retornam retryAfter (segundos) e lockedUntil (ISO 8601)
+  no corpo do erro para o front-end montar um contador regressivo.
 - Todos os erros de autenticação retornam mensagem genérica
   para não vazar se o e-mail existe (user enumeration prevention).
 """
@@ -17,6 +19,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from jose import jwt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -44,7 +47,7 @@ router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ─────────────────────────────────────────────────────────────────
 
 def _decode_jti(token: str) -> tuple[str | None, datetime | None]:
     """Extrai jti e exp do JWT sem validar assinatura (token já foi validado antes)."""
@@ -60,6 +63,30 @@ def _decode_jti(token: str) -> tuple[str | None, datetime | None]:
         return jti, expires_at
     except Exception:
         return None, None
+
+
+def _fmt_time(seconds: int) -> str:
+    """Formata segundos em texto legível: '5 minutos', '1 minuto e 30 segundos', etc."""
+    minutes = seconds // 60
+    secs = seconds % 60
+    if minutes > 0 and secs > 0:
+        return f"{minutes} minuto(s) e {secs} segundo(s)"
+    if minutes > 0:
+        return f"{minutes} minuto(s)"
+    return f"{secs} segundo(s)"
+
+
+def _lockout_response(detail: str, retry_after: int, locked_until: str | None) -> JSONResponse:
+    """Monta um JSONResponse 429 com retryAfter e lockedUntil para o front-end."""
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={
+            "detail": detail,
+            "retryAfter": retry_after,       # segundos restantes de bloqueio
+            "lockedUntil": locked_until,     # ISO 8601 — ex: "2026-05-14T22:15:00+00:00"
+        },
+        headers={"Retry-After": str(retry_after)},
+    )
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -131,30 +158,21 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 
     Proteções ativas:
     1. Rate limit por IP (SlowAPI): 5 req/min
-    2. Bloqueio progressivo por e-mail (login_attempt_service):
-       acumula falhas e aumenta o tempo de bloqueio gradativamente.
-    """
-    invalid_credentials = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="E-mail ou senha incorretos.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    2. Bloqueio progressivo por e-mail (login_attempt_service).
 
-    # ── 1. Verifica se o e-mail está bloqueado ────────────────────────────────
-    is_locked, remaining_seconds = check_lockout(db, payload.email)
+    Quando bloqueado, a resposta 429 inclui:
+      - detail      → mensagem com tempo restante
+      - retryAfter  → segundos até poder tentar novamente
+      - lockedUntil → data/hora exata em ISO 8601
+      - header Retry-After (padrão HTTP)
+    """
+    # ── 1. Verifica se o e-mail já está bloqueado ───────────────────────────
+    is_locked, remaining_seconds, locked_until = check_lockout(db, payload.email)
     if is_locked:
-        minutes = remaining_seconds // 60
-        seconds = remaining_seconds % 60
-        if minutes > 0:
-            time_msg = f"{minutes} minuto(s) e {seconds} segundo(s)" if seconds else f"{minutes} minuto(s)"
-        else:
-            time_msg = f"{seconds} segundo(s)"
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=(
-                f"Conta temporariamente bloqueada por excesso de tentativas. "
-                f"Tente novamente em {time_msg}."
-            ),
+        return _lockout_response(
+            detail=f"Conta bloqueada por excesso de tentativas. Tente novamente em {_fmt_time(remaining_seconds)}.",
+            retry_after=remaining_seconds,
+            locked_until=locked_until,
         )
 
     # ── 2. Busca o usuário ────────────────────────────────────────────────────
@@ -168,19 +186,23 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 
     # ── 3. Valida credenciais ─────────────────────────────────────────────────
     if not user or not verify_password(payload.password, user.hashed_password):
-        # Registra a falha e obtém o novo estado do bloqueio
-        failed_count, lockout_seconds = register_failure(db, payload.email)
+        failed_count, lockout_seconds, locked_until_iso = register_failure(db, payload.email)
 
         if lockout_seconds > 0:
-            minutes = lockout_seconds // 60
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            return _lockout_response(
                 detail=(
                     f"E-mail ou senha incorretos. "
-                    f"Muitas tentativas falhas — conta bloqueada por {minutes} minuto(s)."
+                    f"Muitas tentativas falhas — conta bloqueada por {_fmt_time(lockout_seconds)}."
                 ),
+                retry_after=lockout_seconds,
+                locked_until=locked_until_iso,
             )
-        raise invalid_credentials
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="E-mail ou senha incorretos.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     # ── 4. Conta desativada ───────────────────────────────────────────────────
     if not user.is_active:
