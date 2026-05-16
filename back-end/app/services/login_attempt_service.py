@@ -1,15 +1,10 @@
-"""Serviço de controle de bloqueio progressivo por tentativas de login.
+"""Serviço de controle de tentativas de login por e-mail.
 
-Regra de bloqueio:
-  - 1-4 falhas   → sem bloqueio
-  - 5-9 falhas   → locked por 5 minutos
-  - 10-14 falhas → locked por 15 minutos
-  - 15-19 falhas → locked por 30 minutos
-  - 20+ falhas   → locked por 60 minutos
-
-O contador só é zerado após login bem-sucedido.
-Cada vez que o usuário erra DENTRO do período bloqueado,
-ele acumula mais uma falha (podendo subir de faixa).
+Regra de bloqueio cíclico:
+  - Até 5 falhas: sem bloqueio
+  - Na 6ª falha: bloqueia por 5 minutos
+  - Quando o bloqueio expira: contador volta para 0 automaticamente
+    e o usuário ganha novamente 6 tentativas.
 """
 from datetime import datetime, timedelta, timezone
 
@@ -18,21 +13,8 @@ from sqlalchemy.orm import Session
 from app.models.login_attempt import LoginAttempt
 
 
-# Tabela de faixas: (falhas_minimas, minutos_de_bloqueio)
-_LOCKOUT_TIERS: list[tuple[int, int]] = [
-    (20, 60),
-    (15, 30),
-    (10, 15),
-    (5,   5),
-]
-
-
-def _lockout_minutes(failed_count: int) -> int:
-    """Retorna quantos minutos bloquear baseado no total de falhas."""
-    for threshold, minutes in _LOCKOUT_TIERS:
-        if failed_count >= threshold:
-            return minutes
-    return 0
+_MAX_FAILURES_BEFORE_LOCK = 6
+_LOCKOUT_MINUTES = 5
 
 
 def _get_or_create(db: Session, email: str) -> LoginAttempt:
@@ -69,9 +51,10 @@ def check_lockout(db: Session, email: str) -> tuple[bool, int, str | None]:
         remaining = int((locked_until - now).total_seconds())
         return True, remaining, locked_until.isoformat()
 
-    # Bloqueio expirou — limpa locked_until mas mantém o contador
+    # Bloqueio expirou — reinicia ciclo de tentativas
+    record.failed_count = 0
     record.locked_until = None
-    db.flush()
+    db.commit()
     return False, 0, None
 
 
@@ -83,20 +66,28 @@ def register_failure(db: Session, email: str) -> tuple[int, int, str | None]:
         lockout_seconds=0 e locked_until_iso=None se não há bloqueio.
     """
     record = _get_or_create(db, email)
+
+    if record.locked_until:
+        now = datetime.now(timezone.utc)
+        locked_until = _normalize_utc(record.locked_until)
+        if now >= locked_until:
+            # Reinicia o ciclo se o lock já expirou
+            record.failed_count = 0
+            record.locked_until = None
+
     record.failed_count += 1
 
-    lockout_minutes = _lockout_minutes(record.failed_count)
     locked_until_iso: str | None = None
 
-    if lockout_minutes > 0:
-        locked_until = datetime.now(timezone.utc) + timedelta(minutes=lockout_minutes)
+    if record.failed_count >= _MAX_FAILURES_BEFORE_LOCK:
+        locked_until = datetime.now(timezone.utc) + timedelta(minutes=_LOCKOUT_MINUTES)
         record.locked_until = locked_until
         locked_until_iso = locked_until.isoformat()
     else:
         record.locked_until = None
 
     db.commit()
-    return record.failed_count, lockout_minutes * 60, locked_until_iso
+    return record.failed_count, (_LOCKOUT_MINUTES * 60 if locked_until_iso else 0), locked_until_iso
 
 
 def reset_on_success(db: Session, email: str) -> None:

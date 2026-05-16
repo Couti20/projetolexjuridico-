@@ -24,6 +24,19 @@ export function AssistantHeaderSummary({
   quietStart,
   quietEnd,
 }: AssistantHeaderSummaryProps) {
+  const statusLabel =
+    whatsAppStatus === 'connected'
+      ? 'Conectado'
+      : whatsAppStatus === 'connecting'
+      ? 'Conectando...'
+      : whatsAppStatus === 'qr_pending'
+      ? 'Aguardando QR'
+      : whatsAppStatus === 'qr_expired'
+      ? 'QR expirado'
+      : whatsAppStatus === 'error'
+      ? 'Erro de conexão'
+      : 'Desconectado';
+
   return (
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-blue-900 p-5 sm:p-6">
       <div className="relative z-10">
@@ -45,13 +58,7 @@ export function AssistantHeaderSummary({
           {/* WhatsApp */}
           <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
             <p className="text-[11px] uppercase tracking-wide text-blue-100/80 font-semibold">WhatsApp</p>
-            <p className="text-sm font-semibold text-white mt-1">
-              {whatsAppStatus === 'connected'
-                ? 'Conectado'
-                : whatsAppStatus === 'connecting'
-                ? 'Conectando...'
-                : 'Desconectado'}
-            </p>
+            <p className="text-sm font-semibold text-white mt-1">{statusLabel}</p>
           </div>
 
           {/* Alertas ativos */}

@@ -1,4 +1,4 @@
-"""Model para controle de tentativas de login e bloqueio progressivo."""
+"""Model para controle de tentativas de login e bloqueio cíclico."""
 from datetime import datetime
 from sqlalchemy import DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -9,15 +9,11 @@ from app.database import Base
 class LoginAttempt(Base):
     """Registra tentativas de login falhas por e-mail.
 
-    Lógica de bloqueio progressivo:
-      - failed_count 1-4  → sem bloqueio
-      - failed_count 5-9  → bloqueio de 5 minutos
-      - failed_count 10-14 → bloqueio de 15 minutos
-      - failed_count 15-19 → bloqueio de 30 minutos
-      - failed_count >= 20 → bloqueio de 60 minutos
-
-    O contador nunca é zerado automaticamente pelo tempo;
-    ele só é zerado após um login bem-sucedido.
+    Lógica de bloqueio:
+      - até 5 falhas → sem bloqueio
+      - na 6ª falha  → bloqueio de 5 minutos
+      - após expirar o bloqueio, o contador reinicia automaticamente
+        para o usuário ter novamente 6 tentativas.
     O campo locked_until define até quando o acesso está bloqueado.
     """
     __tablename__ = "login_attempts"

@@ -3,13 +3,10 @@
 Melhorias de segurança:
 - Logout real: jti do token é inserido na blacklist do banco.
 - Rate limiting via SlowAPI: 6 tentativas/min no login, 3/min no register.
-- Bloqueio progressivo por e-mail (login_attempt_service):
-    1-4 falhas   → sem bloqueio
-    5-9 falhas   → bloqueado 5 minutos
-    10-14 falhas → bloqueado 15 minutos
-    15-19 falhas → bloqueado 30 minutos
-    20+ falhas   → bloqueado 60 minutos
-  O contador SÓ é zerado após login bem-sucedido.
+- Bloqueio cíclico por e-mail (login_attempt_service):
+    até 5 falhas → sem bloqueio
+    6ª falha     → bloqueio de 5 minutos
+    após expirar, reinicia ciclo de 6 tentativas.
 - Erros de bloqueio retornam retryAfter (segundos) e lockedUntil (ISO 8601)
   no corpo do erro para o front-end montar um contador regressivo.
 - Todos os erros de autenticação retornam mensagem genérica
@@ -174,7 +171,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 
     Proteções ativas:
     1. Rate limit por IP (SlowAPI): 6 req/min
-    2. Bloqueio progressivo por e-mail (login_attempt_service).
+    2. Bloqueio cíclico por e-mail (6 falhas → 5 minutos).
 
     Quando bloqueado, a resposta 429 inclui:
       - detail      → mensagem com tempo restante
