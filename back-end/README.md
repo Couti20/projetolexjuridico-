@@ -57,6 +57,8 @@ back-end/
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | POST | /auth/login | Login com e-mail e senha |
+| POST | /auth/forgot-password | Solicita recuperação por e-mail |
+| POST | /auth/reset-password | Redefine senha com token único |
 | POST | /auth/logout | Logout |
 | GET | /processes | Lista processos do usuário |
 | GET | /processes/movements | Movimentações por processo |

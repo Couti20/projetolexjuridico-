@@ -23,14 +23,24 @@ class Settings(BaseSettings):
 
     ESCAVADOR_CALLBACK_SECRET: str = ""  # token de validação de callbacks
 
+    # E-mail transacional (Brevo) para recuperação de senha
+    BREVO_API_KEY: str = ""
+    BREVO_SENDER_EMAIL: str = ""
+    BREVO_SENDER_NAME: str = "Lex"
+
+    # URL do front-end que receberá o token no fluxo de reset
+    FRONT_RESET_PASSWORD_URL: str = "http://localhost:3000/redefinir-senha"
+    PASSWORD_RESET_TOKEN_TTL_MINUTES: int = 15
 
     # CORS
     FRONT_URL: str = "http://localhost:3000"
 
     # Rate limiting (formato SlowAPI: "N/period")
-    # Exemplos: "5/minute", "100/hour", "1000/day"
-    RATE_LIMIT_LOGIN: str = "5/minute"
+    # Exemplos: "6/minute", "100/hour", "1000/day"
+    RATE_LIMIT_LOGIN: str = "6/minute"
     RATE_LIMIT_REGISTER: str = "3/minute"
+    RATE_LIMIT_FORGOT_PASSWORD: str = "3/minute"
+    RATE_LIMIT_RESET_PASSWORD: str = "5/minute"
 
     def cors_origins(self) -> list[str]:
         raw_values = [origin.strip() for origin in self.FRONT_URL.split(",") if origin.strip()]

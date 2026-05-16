@@ -18,5 +18,6 @@ class User(Base):
     # setup_completed: marcado como True após o advogado preencher OAB + WhatsApp
     # na tela de onboarding. Persiste entre dispositivos via banco.
     setup_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    token_invalid_before: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

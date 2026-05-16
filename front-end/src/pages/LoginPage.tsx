@@ -13,7 +13,7 @@
  *
  * Bloqueio por excesso de tentativas (429):
  * - Exibe a mensagem do back-end com o tempo restante.
- * - Mostra contador regressivo em segundos ao lado da mensagem.
+ * - Mostra contador regressivo no formato mm:ss ao lado da mensagem.
  * - Desabilita o botão e o formulário enquanto o contador não zera.
  */
 
@@ -31,9 +31,23 @@ const HIGHLIGHTS = [
   { icon: ShieldCheck, text: 'Acesso seguro com criptografia de ponta' },
 ];
 
+function formatCountdown(totalSeconds: number): string {
+  const safe = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatLockErrorMessage(message: string): string {
+  const withoutRetryHint = message.replace(/\s*tente novamente em[\s\S]*$/i, '').trim();
+  const normalized = withoutRetryHint.replace(/[.,;:]\s*$/, '').trim();
+  return normalized || 'Conta bloqueada por excesso de tentativas';
+}
+
 interface LoginPageProps {
   onNavigateHome:      () => void;
   onNavigateSignUp:    () => void;
+  onNavigateForgotPassword: () => void;
   onNavigateSetup:     () => void;
   onNavigateDashboard: () => void;
 }
@@ -41,10 +55,11 @@ interface LoginPageProps {
 export function LoginPage({
   onNavigateHome,
   onNavigateSignUp,
+  onNavigateForgotPassword,
   onNavigateSetup,
   onNavigateDashboard,
 }: LoginPageProps) {
-  const { login, isSetupCompleted } = useAuth();
+  const { login } = useAuth();
   const {
     form, errors, status, serverError,
     authenticatedUser, lockCountdown, isLocked,
@@ -84,7 +99,7 @@ export function LoginPage({
     }, 1_500);
 
     return () => window.clearTimeout(timeoutId);
-  }, [authenticatedUser, isSuccess, isSetupCompleted, login]);
+  }, [authenticatedUser, isSuccess, login]);
 
   return (
     <div className="min-h-screen flex">
@@ -216,11 +231,11 @@ export function LoginPage({
                   >
                     <span aria-hidden="true">{isLocked ? '⏳' : '⚠️'}</span>
                     <span className="flex-1">
-                      {serverError}
+                      {isLocked ? formatLockErrorMessage(serverError) : serverError}
                       {isLocked && (
                         <span className="block mt-1 font-semibold">
-                          Tente novamente em{' '}
-                          <span className="tabular-nums">{lockCountdown}s</span>
+                          Tempo restante:{' '}
+                          <span className="tabular-nums">{formatCountdown(lockCountdown)}</span>
                         </span>
                       )}
                     </span>
@@ -254,11 +269,10 @@ export function LoginPage({
                     <div className="flex justify-end">
                       <button
                         type="button"
-                        disabled
-                        aria-disabled="true"
-                        className="text-xs text-slate-400 font-medium cursor-not-allowed"
+                        onClick={onNavigateForgotPassword}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
                       >
-                        Recuperação em breve
+                        Esqueci minha senha
                       </button>
                     </div>
                   </div>
@@ -290,7 +304,7 @@ export function LoginPage({
                     ) : isLocked ? (
                       <>
                         <span aria-hidden="true">⏳</span>
-                        Aguarde {lockCountdown}s…
+                        Aguarde {formatCountdown(lockCountdown)}…
                       </>
                     ) : (
                       'Entrar no Sistema'

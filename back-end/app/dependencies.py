@@ -75,4 +75,33 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    from app.services.user_service import get_user_by_id  # import local evita circular
+
+    user = get_user_by_id(db, user_id)
+    if user is None or not user.is_active:
+        raise credentials_exception
+
+    token_iat_raw = payload.get("iat")
+    token_iat: datetime | None = None
+    if isinstance(token_iat_raw, (int, float)):
+        token_iat = datetime.fromtimestamp(token_iat_raw, tz=timezone.utc)
+    elif isinstance(token_iat_raw, str):
+        try:
+            token_iat = datetime.fromisoformat(token_iat_raw.replace("Z", "+00:00"))
+        except ValueError:
+            token_iat = None
+
+    if user.token_invalid_before is not None:
+        if token_iat is None:
+            raise credentials_exception
+        cutoff = user.token_invalid_before
+        if cutoff.tzinfo is None:
+            cutoff = cutoff.replace(tzinfo=timezone.utc)
+        if token_iat <= cutoff:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sessão expirada. Faça login novamente.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     return {"id": user_id, "email": payload.get("email", ""), "jti": jti}

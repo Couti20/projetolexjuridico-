@@ -90,6 +90,7 @@ export function AppRoutes() {
           <LoginPage
             onNavigateHome={() => navigate('/')}
             onNavigateSignUp={() => navigate('/cadastro')}
+            onNavigateForgotPassword={() => navigate('/recuperar-senha')}
             onNavigateSetup={() => navigate('/configuracao')}
             onNavigateDashboard={() => navigate('/dashboard')}
           />

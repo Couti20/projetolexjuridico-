@@ -22,6 +22,15 @@ export interface RegisterPayload {
   oab?: string; // opcional no cadastro inicial
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  token: string;
+  newPassword: string;
+}
+
 function isValidLoginResponse(value: unknown): value is LoginResponse {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
@@ -86,7 +95,18 @@ async function fetchAuthEndpoint<TBody extends Record<string, unknown>, TRespons
       : response.status === 503 ? 'service_unavailable'
       : 'request_failed';
 
-    throw new ApiError(response.status, detail, code);
+    const retryAfterFromBody = typeof responseBody.retryAfter === 'number'
+      ? responseBody.retryAfter
+      : undefined;
+    const retryAfterFromHeader = Number(response.headers.get('retry-after'));
+    const retryAfter = Number.isFinite(retryAfterFromHeader) && retryAfterFromHeader > 0
+      ? retryAfterFromHeader
+      : retryAfterFromBody;
+    const lockedUntil = typeof responseBody.lockedUntil === 'string'
+      ? responseBody.lockedUntil
+      : undefined;
+
+    throw new ApiError(response.status, detail, code, retryAfter, lockedUntil);
   }
 
   return responseBody as TResponse;
@@ -156,5 +176,23 @@ export const authService = {
     } finally {
       clearAuthToken();
     }
+  },
+
+  async forgotPassword(payload: ForgotPasswordPayload): Promise<{ message: string }> {
+    const normalizedEmail = payload.email.trim().toLowerCase();
+    return fetchAuthEndpoint<{ email: string }, { message: string }>(
+      '/auth/forgot-password',
+      { email: normalizedEmail },
+    );
+  },
+
+  async resetPassword(payload: ResetPasswordPayload): Promise<{ ok: boolean; message: string }> {
+    return fetchAuthEndpoint<
+      { token: string; new_password: string },
+      { ok: boolean; message: string }
+    >('/auth/reset-password', {
+      token: payload.token,
+      new_password: payload.newPassword,
+    });
   },
 };

@@ -12,6 +12,8 @@ import { PageLoader } from '../components/PageLoader';
 import LandingPage       from '../pages/public/LandingPage';
 import { SignUpPage }    from '../pages/SignUpPage';
 import { LoginPage }     from '../pages/LoginPage';
+import { ForgotPasswordPage } from '../pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 
 const SetupPage               = lazy(() => import('../pages/SetupPage').then(m => ({ default: m.SetupPage })));
 const DashboardPage           = lazy(() => import('../pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -35,6 +37,7 @@ function LoginPageWrapper() {
     <LoginPage
       onNavigateHome={()      => navigate('/')}
       onNavigateSignUp={()    => navigate('/cadastro')}
+      onNavigateForgotPassword={() => navigate('/recuperar-senha')}
       onNavigateSetup={()     => navigate('/configuracao')}
       onNavigateDashboard={()  => navigate('/dashboard')}
     />
@@ -62,11 +65,33 @@ function SetupPageWrapper() {
   );
 }
 
+function ForgotPasswordPageWrapper() {
+  const navigate = useNavigate();
+  return (
+    <ForgotPasswordPage
+      onNavigateHome={() => navigate('/')}
+      onNavigateLogin={() => navigate('/login')}
+    />
+  );
+}
+
+function ResetPasswordPageWrapper() {
+  const navigate = useNavigate();
+  return (
+    <ResetPasswordPage
+      onNavigateHome={() => navigate('/')}
+      onNavigateLogin={() => navigate('/login')}
+    />
+  );
+}
+
 export const router = createBrowserRouter([
   // Públicas
   { path: '/',         element: <LandingPage /> },
   { path: '/cadastro', element: <SignUpPageWrapper /> },
   { path: '/login',    element: <LoginPageWrapper /> },
+  { path: '/recuperar-senha', element: <ForgotPasswordPageWrapper /> },
+  { path: '/redefinir-senha', element: <ResetPasswordPageWrapper /> },
 
   // Onboarding (só aparece se setupCompleted === false)
   { path: '/configuracao', element: <SetupPageWrapper /> },

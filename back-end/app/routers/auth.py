@@ -2,7 +2,7 @@
 
 Melhorias de segurança:
 - Logout real: jti do token é inserido na blacklist do banco.
-- Rate limiting via SlowAPI: 5 tentativas/min no login, 3/min no register.
+- Rate limiting via SlowAPI: 6 tentativas/min no login, 3/min no register.
 - Bloqueio progressivo por e-mail (login_attempt_service):
     1-4 falhas   → sem bloqueio
     5-9 falhas   → bloqueado 5 minutos
@@ -16,10 +16,12 @@ Melhorias de segurança:
   para não vazar se o e-mail existe (user enumeration prevention).
 """
 from datetime import datetime, timezone
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+import httpx
 from jose import jwt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -30,7 +32,20 @@ from app.config import settings
 from app.database import get_db
 from app.dependencies import create_access_token, get_current_user
 from app.models.token_blacklist import TokenBlacklist
-from app.schemas.auth import AuthUser, LoginRequest, LoginResponse, RegisterRequest
+from app.schemas.auth import (
+    AuthUser,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    LoginRequest,
+    LoginResponse,
+    RegisterRequest,
+    ResetPasswordRequest,
+)
+from app.services.email_service import is_email_reset_configured, send_password_reset_email
+from app.services.password_reset_service import (
+    create_password_reset_request,
+    reset_password_with_token,
+)
 from app.services.user_service import (
     create_user,
     get_user_by_email,
@@ -45,6 +60,7 @@ from app.services.login_attempt_service import (
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger(__name__)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -157,7 +173,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
     Autentica o advogado.
 
     Proteções ativas:
-    1. Rate limit por IP (SlowAPI): 5 req/min
+    1. Rate limit por IP (SlowAPI): 6 req/min
     2. Bloqueio progressivo por e-mail (login_attempt_service).
 
     Quando bloqueado, a resposta 429 inclui:
@@ -264,3 +280,63 @@ def logout(
             db.commit()
 
     return {"ok": True, "message": "Logout realizado com sucesso."}
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse, status_code=200)
+@limiter.limit(settings.RATE_LIMIT_FORGOT_PASSWORD)
+def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Solicita recuperação de senha por e-mail.
+    Resposta é sempre genérica para evitar enumeração de usuários.
+    """
+    if not is_email_reset_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Recuperação de senha indisponível no momento. Contate o suporte.",
+        )
+
+    try:
+        reset_data = create_password_reset_request(db, payload.email)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
+        )
+
+    if reset_data is not None:
+        user_email, full_name, token = reset_data
+        try:
+            send_password_reset_email(to_email=user_email, to_name=full_name, token=token)
+        except (httpx.HTTPStatusError, httpx.RequestError):
+            logger.exception("Falha ao enviar e-mail de recuperação de senha via Brevo")
+
+    return ForgotPasswordResponse(
+        message="Se existir uma conta para este e-mail, você receberá as instruções de recuperação."
+    )
+
+
+@router.post("/reset-password", status_code=200)
+@limiter.limit(settings.RATE_LIMIT_RESET_PASSWORD)
+def reset_password(request: Request, payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Redefine a senha a partir de token de recuperação de uso único."""
+    try:
+        reset_password_with_token(db, payload.token, payload.new_password)
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
+        )
+    except ValueError as exc:
+        db.rollback()
+        if str(exc) == "same_password":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="A nova senha não pode ser igual à senha atual.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token de recuperação inválido ou expirado.",
+        )
+
+    return {"ok": True, "message": "Senha redefinida com sucesso. Faça login com a nova senha."}

@@ -19,6 +19,24 @@ const INITIAL_FORM: LoginFormData = {
   rememberMe: false,
 };
 
+function parseRetryAfterSecondsFromText(message: string): number | null {
+  const normalized = message.toLowerCase();
+
+  const minuteMatch = normalized.match(/(\d+)\s*(?:minuto|minutos|minuto\(s\)|min)/);
+  if (minuteMatch) {
+    const minutes = Number.parseInt(minuteMatch[1], 10);
+    if (Number.isFinite(minutes) && minutes > 0) return minutes * 60;
+  }
+
+  const secondMatch = normalized.match(/(\d+)\s*(?:segundo|segundos|segundo\(s\)|s)\b/);
+  if (secondMatch) {
+    const seconds = Number.parseInt(secondMatch[1], 10);
+    if (Number.isFinite(seconds) && seconds > 0) return seconds;
+  }
+
+  return null;
+}
+
 function validateForm(data: LoginFormData): LoginFormErrors {
   const errors: LoginFormErrors = {};
   const adminShortcut = isAdminLogin(data.email, data.password);
@@ -115,8 +133,14 @@ export function useLoginForm() {
         if (error instanceof ApiError) {
           // 429 — conta bloqueada: mostra mensagem do back + inicia contador
           if (error.status === 429) {
-            if (error.retryAfter && error.retryAfter > 0) {
-              startCountdown(error.retryAfter);
+            const retryAfterFromLockedUntil = error.lockedUntil
+              ? Math.max(0, Math.ceil((new Date(error.lockedUntil).getTime() - Date.now()) / 1000))
+              : 0;
+            const retryAfterFromMessage = parseRetryAfterSecondsFromText(error.message) ?? 0;
+            const retryAfter = Math.max(error.retryAfter ?? 0, retryAfterFromLockedUntil, retryAfterFromMessage);
+
+            if (retryAfter > 0) {
+              startCountdown(retryAfter);
             }
             // A mensagem já vem formatada do back-end (ex: "bloqueada por 5 minuto(s)")
             setServerError(error.message);
