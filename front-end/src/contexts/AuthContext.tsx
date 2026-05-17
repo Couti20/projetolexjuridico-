@@ -68,6 +68,7 @@ function readStoredSession(): AuthSession | null {
         email:          user.email,
         oab:            typeof user.oab === 'string' ? user.oab : undefined,
         isAdmin:        typeof user.isAdmin === 'boolean' ? user.isAdmin : false,
+        usuarioTeste:   typeof user.usuarioTeste === 'boolean' ? user.usuarioTeste : false,
         setupCompleted: typeof user.setupCompleted === 'boolean' ? user.setupCompleted : false,
       },
       authenticatedAt,
@@ -98,6 +99,7 @@ interface AuthContextValue {
   logout:           () => void;
   updateUser:       (partialUser: Partial<AuthUser>) => void;
   completeSetup:    (oab?: string) => void;
+  startTrial:       () => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -163,6 +165,22 @@ export function AuthProvider({ children, onUnauthorized }: AuthProviderProps) {
     });
   }, []);
 
+  // ── startTrial ──────────────────────────────────────────────────
+  const startTrial = useCallback(() => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const nextSession: AuthSession = {
+        ...prev,
+        user: {
+          ...prev.user,
+          usuarioTeste: true,
+        },
+      };
+      storeSession(nextSession);
+      return nextSession;
+    });
+  }, []);
+
   // ── completeSetup ───────────────────────────────────────────────────
   const completeSetup = useCallback((oab?: string) => {
     setSession((prev) => {
@@ -192,8 +210,9 @@ export function AuthProvider({ children, onUnauthorized }: AuthProviderProps) {
       logout,
       updateUser,
       completeSetup,
+      startTrial,
     }),
-    [completeSetup, login, logout, safeSession, updateUser],
+    [completeSetup, login, logout, safeSession, startTrial, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

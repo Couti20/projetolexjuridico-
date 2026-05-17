@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, CheckCircle2, Clock3, ListChecks, Plus, Sparkles, TimerReset } from 'lucide-react';
 import { AppLayout } from '../layouts/AppLayout';
 import { AddTaskModal } from '../components/AddTaskModal';
+import { TrialFeatureGate } from '../components/TrialFeatureGate';
+import { useAuth } from '../hooks/useAuth';
 import { taskService, type DayTask, type TaskPriority } from '../services/taskService';
 
 type TaskFilter = 'todas' | 'pendentes' | 'concluidas';
@@ -44,6 +46,7 @@ function formatSnoozeTime(value: number): string {
 }
 
 export function DailyTasksPage() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<DayTask[]>([]);
   const [tasksLoadState, setTasksLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [reloadKey, setReloadKey] = useState(0);
@@ -184,7 +187,18 @@ export function DailyTasksPage() {
     <AppLayout>
       {showModal && <AddTaskModal onClose={() => setShowModal(false)} onAdd={handleAddTask} />}
 
-      <div className="max-w-7xl mx-auto space-y-5">
+      <TrialFeatureGate
+        isTrialUser={Boolean(user?.usuarioTeste)}
+        title="Tarefas Bloqueadas"
+        description="Assine um plano para gerenciar tarefas diárias, prioridades e alertas"
+      >
+        <div className="max-w-5xl mx-auto space-y-6">
+
+        {/* Cabeçalho */}
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Tarefas do Dia</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Organize seu foco, acompanhe o progresso e recupere minutos de produtividade</p>
+        </div>
         {tasksLoadState === 'loading' && (
           <>
             <section className="rounded-2xl border border-slate-100 bg-white shadow-sm p-5 sm:p-6 animate-pulse" aria-busy="true">
@@ -427,7 +441,8 @@ export function DailyTasksPage() {
             )}
           </>
         )}
-      </div>
+        </div>
+      </TrialFeatureGate>
     </AppLayout>
   );
 }

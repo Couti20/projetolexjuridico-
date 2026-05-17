@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CircleAlert, X } from 'lucide-react';
 import { AppLayout } from '../layouts/AppLayout';
 import { ProcessSearchInput } from '../components/processes/ProcessSearchInput';
+import { TrialFeatureGate } from '../components/TrialFeatureGate';
 import { useProcessesData } from '../hooks/useProcessesData';
+import { useAuth } from '../hooks/useAuth';
 import type { ProcessStatus } from '../services/processService';
 import {
   PROCESS_SORT_STORAGE_KEY,
@@ -19,6 +21,8 @@ export function ProcessListPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { processes, loadState, reload } = useProcessesData();
+  const { user } = useAuth();
+  const isTrialUser = Boolean(user?.usuarioTeste);
 
   const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
   // Filtro SEMPRE inicia em 'todos' — não persiste mais no localStorage
@@ -80,7 +84,12 @@ export function ProcessListPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-5">
+      <TrialFeatureGate
+        isTrialUser={isTrialUser}
+        title="Processos Bloqueados"
+        description="Assine um plano para gerenciar processos, filtros e detalhes inteligentes"
+      >
+        <div className="max-w-7xl mx-auto space-y-6">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Meus processos</h1>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -253,7 +262,8 @@ export function ProcessListPage() {
             </section>
           </>
         )}
-      </div>
+        </div>
+      </TrialFeatureGate>
     </AppLayout>
   );
 }

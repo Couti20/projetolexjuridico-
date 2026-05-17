@@ -1,6 +1,15 @@
 import type { AuthUser } from '../types/auth';
 import { ApiError, api, clearAuthToken } from './api';
-import { ADMIN_ACCESS_TOKEN, getAdminUser, isAdminLogin, isAdminToken } from './adminAuth';
+import {
+  ADMIN_ACCESS_TOKEN,
+  TRIAL_ACCESS_TOKEN,
+  getAdminUser,
+  getTrialUser,
+  isAdminLogin,
+  isAdminToken,
+  isTrialLogin,
+  isTrialToken,
+} from './adminAuth';
 
 export interface LoginPayload {
   email: string;
@@ -93,10 +102,21 @@ async function fetchAuthEndpoint<TBody extends Record<string, unknown>, TRespons
 export const authService = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
     const normalizedEmail = payload.email.trim().toLowerCase();
+
+    // ── Admin Login ──
     if (isAdminLogin(normalizedEmail, payload.password)) {
       return {
         user: getAdminUser(),
         accessToken: ADMIN_ACCESS_TOKEN,
+        expiresIn: 86_400,
+      };
+    }
+
+    // ── Trial Login ──
+    if (isTrialLogin(normalizedEmail, payload.password)) {
+      return {
+        user: getTrialUser(),
+        accessToken: TRIAL_ACCESS_TOKEN,
         expiresIn: 86_400,
       };
     }

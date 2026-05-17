@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '../layouts/AppLayout';
+import { TrialFeatureGate } from '../components/TrialFeatureGate';
 import { AssistantHeaderSummary } from '../components/assistant-settings/AssistantHeaderSummary';
 import { OabMonitoringSection } from '../components/assistant-settings/OabMonitoringSection';
 import { WhatsAppIntegrationSection } from '../components/assistant-settings/WhatsAppIntegrationSection';
@@ -129,9 +130,22 @@ export function AssistantSettingsPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const isTrialUser = Boolean(user?.usuarioTeste);
+
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-5">
+      <TrialFeatureGate
+        isTrialUser={isTrialUser}
+        title="Configurações Bloqueadas"
+        description="Assine um plano para configurar o assistente, notificações e WhatsApp"
+      >
+        <div className="max-w-4xl mx-auto space-y-6">
+
+        {/* Cabeçalho */}
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Configurações do Assistente</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Personalize suas notificações e integração com WhatsApp</p>
+        </div>
 
         <AssistantHeaderSummary
           userOab={userOab}
@@ -166,7 +180,8 @@ export function AssistantSettingsPage() {
           saveStatus={saveStatus}
           onUpdateNotification={updateNotification}
         />
-      </div>
+        </div>
+      </TrialFeatureGate>
     </AppLayout>
   );
 }
