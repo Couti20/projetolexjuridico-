@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { CircleAlert, Search, X } from 'lucide-react';
 import { AppLayout } from '../layouts/AppLayout';
 import { useProcessesData } from '../hooks/useProcessesData';
 import type { ProcessStatus } from '../services/processService';
 import {
   PROCESS_SORT_STORAGE_KEY,
+  PROCESS_LIST_CONTEXT_STORAGE_KEY,
   type ProcessSort,
   STATUS_PRIORITY,
   parsePtBrDateTime,
@@ -13,32 +14,115 @@ import {
   statusLabel,
 } from './processes/processHelpers';
 
+type ProcessFilter = 'todos' | ProcessStatus;
+
+interface StoredProcessListContext {
+  query: string;
+  filter: ProcessFilter;
+  sortBy: ProcessSort;
+  page: number;
+  savedAt: number;
+}
+
+const CONTEXT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const ITEMS_PER_PAGE = 5;
+
+function normalizeSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function normalizeCompactSearch(value: string): string {
+  return normalizeSearch(value).replace(/[^a-z0-9]/g, '');
+}
+
+function readStoredContext(): StoredProcessListContext | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(PROCESS_LIST_CONTEXT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const candidate = parsed as Record<string, unknown>;
+
+    const query = typeof candidate.query === 'string' ? candidate.query : '';
+    const filter = candidate.filter;
+    const sortBy = candidate.sortBy;
+    const page = typeof candidate.page === 'number' ? Math.max(1, Math.floor(candidate.page)) : 1;
+    const savedAt = typeof candidate.savedAt === 'number' ? candidate.savedAt : 0;
+
+    const validFilter = filter === 'todos' || filter === 'critico' || filter === 'atencao' || filter === 'normal';
+    const validSort = sortBy === 'urgencia' || sortBy === 'movimentacao' || sortBy === 'numero';
+    if (!validFilter || !validSort || !savedAt) return null;
+
+    if (Date.now() - savedAt > CONTEXT_TTL_MS) {
+      window.localStorage.removeItem(PROCESS_LIST_CONTEXT_STORAGE_KEY);
+      return null;
+    }
+
+    return {
+      query,
+      filter,
+      sortBy,
+      page,
+      savedAt,
+    } as StoredProcessListContext;
+  } catch (error) {
+    console.error('Não foi possível restaurar o contexto da lista de processos.', error);
+    return null;
+  }
+}
+
 export function ProcessListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { processes, loadState, reload } = useProcessesData();
+  const storedContext = useMemo(() => readStoredContext(), []);
+  const urlQuery = useMemo(() => {
+    const value = new URLSearchParams(location.search).get('q');
+    return value?.trim() ?? '';
+  }, [location.search]);
 
-  const [query, setQuery] = useState('');
-  // Filtro SEMPRE inicia em 'todos' — não persiste mais no localStorage
-  const [filter, setFilter] = useState<'todos' | ProcessStatus>('todos');
+  const [query, setQuery] = useState(urlQuery || storedContext?.query || '');
+  const [filter, setFilter] = useState<ProcessFilter>(storedContext?.filter ?? 'todos');
   const [sortBy, setSortBy] = useState<ProcessSort>(() => {
+    if (storedContext?.sortBy) return storedContext.sortBy;
     if (typeof window === 'undefined') return 'urgencia';
     const saved = window.localStorage.getItem(PROCESS_SORT_STORAGE_KEY);
     return saved === 'urgencia' || saved === 'movimentacao' || saved === 'numero' ? saved : 'urgencia';
   });
+  const [page, setPage] = useState<number>(storedContext?.page ?? 1);
 
   useEffect(() => {
     window.localStorage.setItem(PROCESS_SORT_STORAGE_KEY, sortBy);
   }, [sortBy]);
 
+  useEffect(() => {
+    if (!urlQuery || urlQuery === query) return;
+    setQuery(urlQuery);
+    setPage(1);
+  }, [query, urlQuery]);
+
   const filteredProcesses = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = normalizeSearch(query.trim());
+    const normalizedCompact = normalizeCompactSearch(query.trim());
     const matching = processes.filter((p) => {
       const matchesFilter = filter === 'todos' || p.status === filter;
+      const searchableText = normalizeSearch([
+        p.number,
+        p.claimant,
+        p.defendant,
+        p.court,
+        p.district,
+        p.latestMovementTitle,
+      ].join(' '));
+      const searchableCompact = normalizeCompactSearch(p.number);
       const matchesSearch =
         !normalized ||
-        p.number.toLowerCase().includes(normalized) ||
-        p.claimant.toLowerCase().includes(normalized) ||
-        p.defendant.toLowerCase().includes(normalized);
+        searchableText.includes(normalized) ||
+        (normalizedCompact.length > 0 && searchableCompact.includes(normalizedCompact));
       return matchesFilter && matchesSearch;
     });
 
@@ -53,12 +137,56 @@ export function ProcessListPage() {
     });
   }, [filter, processes, query, sortBy]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredProcesses.length / ITEMS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const searchSuggestions = useMemo(() => {
+    const normalized = normalizeSearch(query.trim());
+    if (!normalized) return [];
+
+    const values = new Set<string>();
+    for (const process of processes) {
+      const candidates = [process.number, process.claimant, process.defendant];
+      for (const candidate of candidates) {
+        if (normalizeSearch(candidate).includes(normalized)) {
+          values.add(candidate);
+        }
+      }
+      if (values.size >= 8) break;
+    }
+
+    return Array.from(values).slice(0, 8);
+  }, [processes, query]);
+
+  const paginatedProcesses = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredProcesses.slice(start, start + ITEMS_PER_PAGE);
+  }, [currentPage, filteredProcesses]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const context: StoredProcessListContext = {
+      query,
+      filter,
+      sortBy,
+      page: currentPage,
+      savedAt: Date.now(),
+    };
+    window.localStorage.setItem(PROCESS_LIST_CONTEXT_STORAGE_KEY, JSON.stringify(context));
+  }, [currentPage, filter, query, sortBy]);
+
   const hasActiveFilter = filter !== 'todos' || query.trim() !== '';
 
   function clearAll() {
     setQuery('');
     setFilter('todos');
     setSortBy('urgencia');
+    setPage(1);
   }
 
   return (
@@ -122,11 +250,20 @@ export function ProcessListPage() {
                   <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="search"
+                    list="process-search-suggestions"
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      setPage(1);
+                    }}
                     placeholder="Buscar por número do processo, autor ou réu..."
                     className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                   />
+                  <datalist id="process-search-suggestions">
+                    {searchSuggestions.map((suggestion) => (
+                      <option key={suggestion} value={suggestion} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -134,7 +271,10 @@ export function ProcessListPage() {
                     <button
                       key={option}
                       type="button"
-                      onClick={() => setFilter(option)}
+                      onClick={() => {
+                        setFilter(option);
+                        setPage(1);
+                      }}
                       className={[
                         'px-3 py-2 rounded-xl text-xs font-semibold border transition-colors',
                         filter === option
@@ -151,7 +291,10 @@ export function ProcessListPage() {
                     <select
                       id="process-sort"
                       value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as ProcessSort)}
+                      onChange={(e) => {
+                        setSortBy(e.target.value as ProcessSort);
+                        setPage(1);
+                      }}
                       className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                     >
                       <option value="urgencia">Mais urgente</option>
@@ -200,7 +343,7 @@ export function ProcessListPage() {
                   </div>
                 </div>
               ) : (
-                filteredProcesses.map((process) => (
+                paginatedProcesses.map((process) => (
                   <article key={process.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
                     <div className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-5">
                       <div className="flex-1 min-w-0">
@@ -236,6 +379,34 @@ export function ProcessListPage() {
                 ))
               )}
             </section>
+
+            {filteredProcesses.length > 0 && (
+              <section className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="text-xs text-slate-500">
+                  Página {currentPage} de {totalPages} · exibindo{' '}
+                  {Math.min(filteredProcesses.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}–
+                  {Math.min(filteredProcesses.length, currentPage * ITEMS_PER_PAGE)} de {filteredProcesses.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage <= 1}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:border-slate-300"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:border-slate-300"
+                  >
+                    Próxima
+                  </button>
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>

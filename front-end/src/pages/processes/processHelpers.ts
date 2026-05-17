@@ -4,6 +4,7 @@ export type ProcessSort = 'urgencia' | 'movimentacao' | 'numero';
 
 export const PROCESS_FILTER_STORAGE_KEY = 'lex-processes-filter';
 export const PROCESS_SORT_STORAGE_KEY = 'lex-processes-sort';
+export const PROCESS_LIST_CONTEXT_STORAGE_KEY = 'lex-processes-list-context-v1';
 export const PROCESS_MOVEMENT_READ_STORAGE_KEY = 'lex-processes-movement-read';
 export const PROCESS_MOVEMENT_NOTES_STORAGE_KEY = 'lex-processes-movement-notes';
 

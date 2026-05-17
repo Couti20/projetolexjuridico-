@@ -12,7 +12,7 @@
 import { useRef, useState, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bell, Search, Menu, ChevronDown, AlertTriangle,
+  Bell, Menu, ChevronDown, AlertTriangle,
   Settings, UserRound, CreditCard, ShieldCheck, LifeBuoy, LogOut,
 } from 'lucide-react';
 import { useApiStatus } from '../hooks/useApiStatus';
@@ -86,16 +86,6 @@ export const AppHeader = memo(function AppHeader({
       >
         <Menu size={22} />
       </button>
-
-      {/* Search */}
-      <div className="flex-1 max-w-xs relative">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          placeholder="Buscar processos, prazos ou clientes..."
-          className="w-full pl-9 pr-4 py-2 text-sm rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all"
-        />
-      </div>
 
       <div className="flex-1" />
 

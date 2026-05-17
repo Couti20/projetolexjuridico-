@@ -1,26 +1,28 @@
 """Ponto de entrada da Lex API.
 
 Ordem de registro dos middlewares (LIFO — último registrado, primeiro executado):
-1. SecurityHeadersMiddleware  → adiciona headers de segurança em TODAS as respostas
-2. CORSMiddleware             → trata preflight e valida origens
-3. SlowAPI state              → disponibiliza o limiter para os routers
+1. SecurityHeadersMiddleware   → adiciona headers de segurança em TODAS as respostas
+2. PayloadSizeLimitMiddleware  → bloqueia payloads acima do limite configurado
+3. ConcurrencyLimitMiddleware  → limita concorrência global de requisições
+4. RequestTimeoutMiddleware    → encerra requisições lentas com timeout
+5. CORSMiddleware              → trata preflight e valida origens
 """
 import re
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.middleware import SecurityHeadersMiddleware
+from app.middleware import (
+    ConcurrencyLimitMiddleware,
+    PayloadSizeLimitMiddleware,
+    RequestTimeoutMiddleware,
+    SecurityHeadersMiddleware,
+)
+from app.rate_limit import limiter
 from app.routers import auth, processes, dashboard, tasks, users
 from app.routers import escavador_webhook
-
-# ── SlowAPI (rate limiting global) ────────────────────────────────────────────
-limiter = Limiter(key_func=get_remote_address)
-
 
 def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     """Retorna 429 com retryAfter em segundos e mensagem legível.
@@ -90,6 +92,13 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
 # ── Middlewares (ordem importa: último adicionado = primeiro executado) ────────
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(PayloadSizeLimitMiddleware, max_body_bytes=settings.MAX_REQUEST_BODY_BYTES)
+app.add_middleware(
+    ConcurrencyLimitMiddleware,
+    max_concurrent_requests=settings.MAX_CONCURRENT_REQUESTS,
+    acquire_timeout_seconds=settings.REQUEST_QUEUE_TIMEOUT_SECONDS,
+)
+app.add_middleware(RequestTimeoutMiddleware, timeout_seconds=settings.REQUEST_TIMEOUT_SECONDS)
 
 app.add_middleware(
     CORSMiddleware,

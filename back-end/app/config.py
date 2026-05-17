@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_REGISTER: str = "3/minute"
     RATE_LIMIT_FORGOT_PASSWORD: str = "3/minute"
     RATE_LIMIT_RESET_PASSWORD: str = "5/minute"
+    RATE_LIMIT_REFRESH: str = "12/minute"
+
+    # Proteção de endpoints
+    MAX_REQUEST_BODY_BYTES: int = 1_048_576  # 1 MB
+    REQUEST_TIMEOUT_SECONDS: int = 30
+    REQUEST_QUEUE_TIMEOUT_SECONDS: int = 5
+    MAX_CONCURRENT_REQUESTS: int = 100
 
     def is_production(self) -> bool:
         return self.APP_ENV.strip().lower() == "production"
@@ -84,6 +91,14 @@ class Settings(BaseSettings):
             errors.append("ACCESS_TOKEN_EXPIRE_MINUTES deve ficar entre 1 e 60 em produção.")
         if self.REFRESH_TOKEN_EXPIRE_DAYS <= 0 or self.REFRESH_TOKEN_EXPIRE_DAYS > 30:
             errors.append("REFRESH_TOKEN_EXPIRE_DAYS deve ficar entre 1 e 30 em produção.")
+        if self.MAX_REQUEST_BODY_BYTES <= 0 or self.MAX_REQUEST_BODY_BYTES > 10 * 1024 * 1024:
+            errors.append("MAX_REQUEST_BODY_BYTES deve ficar entre 1 e 10485760 em produção.")
+        if self.REQUEST_TIMEOUT_SECONDS <= 0 or self.REQUEST_TIMEOUT_SECONDS > 120:
+            errors.append("REQUEST_TIMEOUT_SECONDS deve ficar entre 1 e 120 em produção.")
+        if self.REQUEST_QUEUE_TIMEOUT_SECONDS <= 0 or self.REQUEST_QUEUE_TIMEOUT_SECONDS > 30:
+            errors.append("REQUEST_QUEUE_TIMEOUT_SECONDS deve ficar entre 1 e 30 em produção.")
+        if self.MAX_CONCURRENT_REQUESTS <= 0 or self.MAX_CONCURRENT_REQUESTS > 2000:
+            errors.append("MAX_CONCURRENT_REQUESTS deve ficar entre 1 e 2000 em produção.")
 
         front_url_values = [item.strip() for item in self.FRONT_URL.split(",") if item.strip()]
         if not front_url_values:

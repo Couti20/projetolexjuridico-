@@ -21,7 +21,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 import httpx
 from jose import JWTError, jwt
-from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -29,6 +28,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.dependencies import create_access_token, create_refresh_token, get_current_user
+from app.rate_limit import limiter
 from app.models.refresh_token import RefreshToken
 from app.models.token_blacklist import TokenBlacklist
 from app.schemas.auth import (
@@ -65,7 +65,6 @@ from app.services.refresh_token_service import (
 )
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
 logger = logging.getLogger(__name__)
 
 
@@ -350,6 +349,7 @@ def logout(
 
 
 @router.post("/refresh", response_model=LoginResponse, status_code=200)
+@limiter.limit(settings.RATE_LIMIT_REFRESH)
 def refresh_session(request: Request, payload: RefreshTokenRequest, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
