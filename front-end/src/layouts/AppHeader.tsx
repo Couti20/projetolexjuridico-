@@ -12,10 +12,11 @@
 import { useRef, useState, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bell, Search, Menu, ChevronDown, AlertTriangle,
+  Bell, Menu, ChevronDown, AlertTriangle,
   Settings, UserRound, CreditCard, ShieldCheck, LifeBuoy, LogOut,
 } from 'lucide-react';
 import { useApiStatus } from '../hooks/useApiStatus';
+import { ProcessSearchInput } from '../components/processes/ProcessSearchInput';
 
 interface AppHeaderProps {
   displayName: string;
@@ -35,6 +36,7 @@ export const AppHeader = memo(function AppHeader({
   const navigate     = useNavigate();
   const apiStatus    = useApiStatus();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -75,6 +77,11 @@ export const AppHeader = memo(function AppHeader({
 
   const nav = (path: string) => { navigate(path); setProfileOpen(false); };
 
+  function handleSearchSubmit() {
+    const trimmedQuery = searchQuery.trim();
+    navigate(trimmedQuery ? `/processos?q=${encodeURIComponent(trimmedQuery)}` : '/processos');
+  }
+
   return (
     <header className="shrink-0 h-16 bg-white border-b border-slate-100 flex items-center px-4 lg:px-6 gap-4">
       {/* Mobile hamburger */}
@@ -88,14 +95,15 @@ export const AppHeader = memo(function AppHeader({
       </button>
 
       {/* Search */}
-      <div className="flex-1 max-w-xs relative">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          placeholder="Buscar processos, prazos ou clientes..."
-          className="w-full pl-9 pr-4 py-2 text-sm rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all"
-        />
-      </div>
+      <ProcessSearchInput
+        value={searchQuery}
+        onChange={setSearchQuery}
+        onSubmit={handleSearchSubmit}
+        placeholder="Buscar por número do processo, autor ou réu..."
+        className="flex flex-1 max-w-xl gap-2"
+        inputClassName="bg-slate-50"
+        buttonClassName="hidden sm:inline-flex"
+      />
 
       <div className="flex-1" />
 

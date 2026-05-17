@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CircleAlert, Search, X } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { CircleAlert, X } from 'lucide-react';
 import { AppLayout } from '../layouts/AppLayout';
+import { ProcessSearchInput } from '../components/processes/ProcessSearchInput';
 import { useProcessesData } from '../hooks/useProcessesData';
 import type { ProcessStatus } from '../services/processService';
 import {
@@ -12,12 +13,14 @@ import {
   statusBadgeClasses,
   statusLabel,
 } from './processes/processHelpers';
+import { processMatchesSearch } from './processes/processSearch';
 
 export function ProcessListPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { processes, loadState, reload } = useProcessesData();
 
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
   // Filtro SEMPRE inicia em 'todos' — não persiste mais no localStorage
   const [filter, setFilter] = useState<'todos' | ProcessStatus>('todos');
   const [sortBy, setSortBy] = useState<ProcessSort>(() => {
@@ -30,15 +33,29 @@ export function ProcessListPage() {
     window.localStorage.setItem(PROCESS_SORT_STORAGE_KEY, sortBy);
   }, [sortBy]);
 
+  useEffect(() => {
+    setQuery(searchParams.get('q') ?? '');
+  }, [searchParams]);
+
+  function updateQuery(nextQuery: string) {
+    setQuery(nextQuery);
+
+    const nextParams = new URLSearchParams(searchParams);
+    const trimmedQuery = nextQuery.trim();
+
+    if (trimmedQuery) {
+      nextParams.set('q', trimmedQuery);
+    } else {
+      nextParams.delete('q');
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }
+
   const filteredProcesses = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
     const matching = processes.filter((p) => {
       const matchesFilter = filter === 'todos' || p.status === filter;
-      const matchesSearch =
-        !normalized ||
-        p.number.toLowerCase().includes(normalized) ||
-        p.claimant.toLowerCase().includes(normalized) ||
-        p.defendant.toLowerCase().includes(normalized);
+      const matchesSearch = processMatchesSearch(p, query);
       return matchesFilter && matchesSearch;
     });
 
@@ -56,7 +73,7 @@ export function ProcessListPage() {
   const hasActiveFilter = filter !== 'todos' || query.trim() !== '';
 
   function clearAll() {
-    setQuery('');
+    updateQuery('');
     setFilter('todos');
     setSortBy('urgencia');
   }
@@ -118,16 +135,14 @@ export function ProcessListPage() {
           <>
             <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
               <div className="flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Buscar por número do processo, autor ou réu..."
-                    className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-                  />
-                </div>
+                <ProcessSearchInput
+                  value={query}
+                  onChange={updateQuery}
+                  placeholder="Buscar por número do processo, autor ou réu..."
+                  showClear
+                  onClear={() => updateQuery('')}
+                  className="flex flex-1"
+                />
 
                 <div className="flex flex-wrap items-center gap-2">
                   {(['todos', 'critico', 'atencao', 'normal'] as const).map((option) => (
