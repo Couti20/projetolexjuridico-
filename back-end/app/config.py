@@ -1,4 +1,18 @@
+import re
+from urllib.parse import urlparse
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+_WEAK_SECRET_PATTERNS = (
+    r"dev[-_]?secret",
+    r"troque",
+    r"change[-_]?me",
+    r"senha",
+    r"secret123",
+    r"123456",
+    r"qwerty",
+)
 
 
 class Settings(BaseSettings):
@@ -7,7 +21,8 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     SECRET_KEY: str = "dev-secret-key-troque-em-producao"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # MySQL via XAMPP (PyMySQL)
     DATABASE_URL: str = "mysql+pymysql://root:@localhost:3306/lex_db"
@@ -42,6 +57,53 @@ class Settings(BaseSettings):
     RATE_LIMIT_FORGOT_PASSWORD: str = "3/minute"
     RATE_LIMIT_RESET_PASSWORD: str = "5/minute"
 
+    def is_production(self) -> bool:
+        return self.APP_ENV.strip().lower() == "production"
+
+    def validate_startup_security(self) -> None:
+        if not self.is_production():
+            return
+
+        errors: list[str] = []
+        secret = self.SECRET_KEY.strip()
+
+        if len(secret) < 48:
+            errors.append("SECRET_KEY deve ter pelo menos 48 caracteres em produção.")
+        if secret.isalnum():
+            errors.append("SECRET_KEY deve conter caracteres especiais em produção.")
+        for pattern in _WEAK_SECRET_PATTERNS:
+            if re.search(pattern, secret, flags=re.IGNORECASE):
+                errors.append("SECRET_KEY parece fraca ou padrão de exemplo. Gere uma nova chave.")
+                break
+
+        algorithm = self.ALGORITHM.strip().upper()
+        if algorithm != "HS256":
+            errors.append("ALGORITHM inválido. Use HS256.")
+
+        if self.ACCESS_TOKEN_EXPIRE_MINUTES <= 0 or self.ACCESS_TOKEN_EXPIRE_MINUTES > 60:
+            errors.append("ACCESS_TOKEN_EXPIRE_MINUTES deve ficar entre 1 e 60 em produção.")
+        if self.REFRESH_TOKEN_EXPIRE_DAYS <= 0 or self.REFRESH_TOKEN_EXPIRE_DAYS > 30:
+            errors.append("REFRESH_TOKEN_EXPIRE_DAYS deve ficar entre 1 e 30 em produção.")
+
+        front_url_values = [item.strip() for item in self.FRONT_URL.split(",") if item.strip()]
+        if not front_url_values:
+            errors.append("FRONT_URL não pode ficar vazio em produção.")
+        for front_url in front_url_values:
+            if front_url.startswith("http://"):
+                errors.append("FRONT_URL deve usar HTTPS em produção.")
+                break
+
+        reset_url = self.FRONT_RESET_PASSWORD_URL.strip()
+        parsed_reset = urlparse(reset_url)
+        if parsed_reset.scheme != "https":
+            errors.append("FRONT_RESET_PASSWORD_URL deve usar HTTPS em produção.")
+        if not parsed_reset.netloc:
+            errors.append("FRONT_RESET_PASSWORD_URL inválida em produção.")
+
+        if errors:
+            joined = " | ".join(errors)
+            raise RuntimeError(f"Configuração insegura para produção: {joined}")
+
     def cors_origins(self) -> list[str]:
         raw_values = [origin.strip() for origin in self.FRONT_URL.split(",") if origin.strip()]
 
@@ -61,6 +123,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-if settings.APP_ENV.lower() == "production" and settings.SECRET_KEY == "dev-secret-key-troque-em-producao":
-    raise RuntimeError("SECRET_KEY insegura para produção. Configure uma chave forte no ambiente.")

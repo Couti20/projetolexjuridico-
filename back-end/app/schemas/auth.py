@@ -37,6 +37,12 @@ class LoginResponse(BaseModel):
     user: AuthUser
     accessToken: str
     expiresIn: int
+    refreshToken: str
+    refreshExpiresIn: int
+
+
+class RefreshTokenRequest(BaseModel):
+    refreshToken: str = Field(min_length=20, max_length=4096)
 
 
 class ForgotPasswordRequest(BaseModel):

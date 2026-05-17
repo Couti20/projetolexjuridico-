@@ -1,4 +1,4 @@
-"""Serviço de controle de tentativas de login por e-mail.
+"""Serviço de controle de tentativas de login por e-mail + IP.
 
 Regra de bloqueio cíclico:
   - Até 5 falhas: sem bloqueio
@@ -17,10 +17,25 @@ _MAX_FAILURES_BEFORE_LOCK = 6
 _LOCKOUT_MINUTES = 5
 
 
-def _get_or_create(db: Session, email: str) -> LoginAttempt:
-    record = db.query(LoginAttempt).filter(LoginAttempt.email == email).first()
+def _normalize_ip(ip_address: str | None) -> str:
+    ip = (ip_address or "").strip()
+    return ip or "unknown"
+
+
+def _get_or_create(db: Session, email: str, ip_address: str | None) -> LoginAttempt:
+    normalized_email = email.lower().strip()
+    normalized_ip = _normalize_ip(ip_address)
+    record = db.query(LoginAttempt).filter(
+        LoginAttempt.email == normalized_email,
+        LoginAttempt.ip_address == normalized_ip,
+    ).first()
     if not record:
-        record = LoginAttempt(email=email, failed_count=0, locked_until=None)
+        record = LoginAttempt(
+            email=normalized_email,
+            ip_address=normalized_ip,
+            failed_count=0,
+            locked_until=None,
+        )
         db.add(record)
         db.flush()
     return record
@@ -33,14 +48,19 @@ def _normalize_utc(dt: datetime) -> datetime:
     return dt
 
 
-def check_lockout(db: Session, email: str) -> tuple[bool, int, str | None]:
+def check_lockout(db: Session, email: str, ip_address: str | None) -> tuple[bool, int, str | None]:
     """Verifica se o e-mail está bloqueado.
 
     Returns:
         (is_locked, seconds_remaining, locked_until_iso)
         Se is_locked=False → seconds_remaining=0, locked_until_iso=None.
     """
-    record = db.query(LoginAttempt).filter(LoginAttempt.email == email).first()
+    normalized_email = email.lower().strip()
+    normalized_ip = _normalize_ip(ip_address)
+    record = db.query(LoginAttempt).filter(
+        LoginAttempt.email == normalized_email,
+        LoginAttempt.ip_address == normalized_ip,
+    ).first()
     if not record or not record.locked_until:
         return False, 0, None
 
@@ -58,14 +78,14 @@ def check_lockout(db: Session, email: str) -> tuple[bool, int, str | None]:
     return False, 0, None
 
 
-def register_failure(db: Session, email: str) -> tuple[int, int, str | None]:
+def register_failure(db: Session, email: str, ip_address: str | None) -> tuple[int, int, str | None]:
     """Registra uma falha de login e aplica bloqueio se necessário.
 
     Returns:
         (failed_count, lockout_seconds, locked_until_iso)
         lockout_seconds=0 e locked_until_iso=None se não há bloqueio.
     """
-    record = _get_or_create(db, email)
+    record = _get_or_create(db, email, ip_address)
 
     if record.locked_until:
         now = datetime.now(timezone.utc)
@@ -90,9 +110,14 @@ def register_failure(db: Session, email: str) -> tuple[int, int, str | None]:
     return record.failed_count, (_LOCKOUT_MINUTES * 60 if locked_until_iso else 0), locked_until_iso
 
 
-def reset_on_success(db: Session, email: str) -> None:
+def reset_on_success(db: Session, email: str, ip_address: str | None) -> None:
     """Zera o contador após login bem-sucedido."""
-    record = db.query(LoginAttempt).filter(LoginAttempt.email == email).first()
+    normalized_email = email.lower().strip()
+    normalized_ip = _normalize_ip(ip_address)
+    record = db.query(LoginAttempt).filter(
+        LoginAttempt.email == normalized_email,
+        LoginAttempt.ip_address == normalized_ip,
+    ).first()
     if record:
         record.failed_count = 0
         record.locked_until = None

@@ -34,6 +34,23 @@ def create_access_token(data: dict) -> str:
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
+def create_refresh_token(data: dict) -> tuple[str, int, str, datetime]:
+    """Gera refresh token com jti único para rotação de sessão."""
+    to_encode = data.copy()
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    jti = str(uuid.uuid4())
+    to_encode.update({
+        "iat": now,
+        "exp": expire,
+        "type": "refresh",
+        "jti": jti,
+    })
+    token = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    expires_in = int((expire - now).total_seconds())
+    return token, expires_in, jti, expire
+
+
 def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearerScheme)],
     db: Session = Depends(get_db),

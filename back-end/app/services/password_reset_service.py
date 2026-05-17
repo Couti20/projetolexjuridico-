@@ -13,6 +13,7 @@ from app.services.user_service import (
     hash_password,
     verify_password,
 )
+from app.services.refresh_token_service import revoke_all_user_refresh_sessions
 
 
 def _hash_token(raw_token: str) -> str:
@@ -78,6 +79,7 @@ def reset_password_with_token(db: Session, token: str, new_password: str) -> Non
     user.hashed_password = hash_password(new_password)
     user.token_invalid_before = now
     reset_entry.used_at = now
+    revoke_all_user_refresh_sessions(db, user_id=user.id)
 
     db.query(PasswordResetToken).filter(
         PasswordResetToken.user_id == user.id,

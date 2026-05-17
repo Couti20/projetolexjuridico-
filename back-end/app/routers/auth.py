@@ -3,10 +3,11 @@
 Melhorias de segurança:
 - Logout real: jti do token é inserido na blacklist do banco.
 - Rate limiting via SlowAPI: 6 tentativas/min no login, 3/min no register.
-- Bloqueio cíclico por e-mail (login_attempt_service):
-    até 5 falhas → sem bloqueio
-    6ª falha     → bloqueio de 5 minutos
+- Bloqueio cíclico por e-mail + IP (login_attempt_service):
+    até 5 falhas      → sem bloqueio
+    6ª falha no par   → bloqueio de 5 minutos
     após expirar, reinicia ciclo de 6 tentativas.
+- Sessão curta via access token + refresh token com rotação e revogação.
 - Erros de bloqueio retornam retryAfter (segundos) e lockedUntil (ISO 8601)
   no corpo do erro para o front-end montar um contador regressivo.
 - Todos os erros de autenticação retornam mensagem genérica
@@ -19,7 +20,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 import httpx
-from jose import jwt
+from jose import JWTError, jwt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -27,7 +28,8 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import create_access_token, get_current_user
+from app.dependencies import create_access_token, create_refresh_token, get_current_user
+from app.models.refresh_token import RefreshToken
 from app.models.token_blacklist import TokenBlacklist
 from app.schemas.auth import (
     AuthUser,
@@ -35,6 +37,7 @@ from app.schemas.auth import (
     ForgotPasswordResponse,
     LoginRequest,
     LoginResponse,
+    RefreshTokenRequest,
     RegisterRequest,
     ResetPasswordRequest,
 )
@@ -46,6 +49,7 @@ from app.services.password_reset_service import (
 from app.services.user_service import (
     create_user,
     get_user_by_email,
+    get_user_by_id,
     to_auth_user,
     verify_password,
 )
@@ -53,6 +57,11 @@ from app.services.login_attempt_service import (
     check_lockout,
     register_failure,
     reset_on_success,
+)
+from app.services.refresh_token_service import (
+    create_refresh_session,
+    revoke_all_user_refresh_sessions,
+    revoke_refresh_session,
 )
 
 router = APIRouter()
@@ -74,7 +83,7 @@ def _decode_jti(token: str) -> tuple[str | None, datetime | None]:
         exp_ts = payload.get("exp")
         expires_at = datetime.fromtimestamp(exp_ts, tz=timezone.utc) if exp_ts else None
         return jti, expires_at
-    except Exception:
+    except JWTError:
         return None, None
 
 
@@ -100,6 +109,38 @@ def _lockout_response(detail: str, retry_after: int, locked_until: str | None) -
         },
         headers={"Retry-After": str(retry_after)},
     )
+
+
+def _normalize_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _client_ip(request: Request) -> str:
+    return get_remote_address(request) or "unknown"
+
+
+def _issue_session_tokens(
+    db: Session,
+    *,
+    auth_user: AuthUser,
+    request: Request,
+) -> tuple[str, int, str, int]:
+    access_token = create_access_token({"sub": auth_user.id, "email": auth_user.email})
+    refresh_token, refresh_expires_in, refresh_jti, refresh_expires_at = create_refresh_token(
+        {"sub": auth_user.id, "email": auth_user.email}
+    )
+    create_refresh_session(
+        db,
+        user_id=auth_user.id,
+        jti=refresh_jti,
+        expires_at=refresh_expires_at,
+        ip_address=_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    db.commit()
+    return access_token, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, refresh_token, refresh_expires_in
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -154,12 +195,25 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
         )
 
     auth_user = to_auth_user(user)
-    token = create_access_token({"sub": auth_user.id, "email": auth_user.email})
+    try:
+        access_token, access_expires_in, refresh_token, refresh_expires_in = _issue_session_tokens(
+            db,
+            auth_user=auth_user,
+            request=request,
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
+        )
 
     return LoginResponse(
         user=auth_user,
-        accessToken=token,
-        expiresIn=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        accessToken=access_token,
+        expiresIn=access_expires_in,
+        refreshToken=refresh_token,
+        refreshExpiresIn=refresh_expires_in,
     )
 
 
@@ -171,7 +225,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 
     Proteções ativas:
     1. Rate limit por IP (SlowAPI): 6 req/min
-    2. Bloqueio cíclico por e-mail (6 falhas → 5 minutos).
+    2. Bloqueio cíclico por e-mail + IP (6 falhas → 5 minutos).
 
     Quando bloqueado, a resposta 429 inclui:
       - detail      → mensagem com tempo restante
@@ -179,9 +233,11 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
       - lockedUntil → data/hora exata em ISO 8601
       - header Retry-After (padrão HTTP)
     """
+    client_ip = _client_ip(request)
+
     # ── 1. Verifica bloqueio ativo ───────────────────────────────────────────
     try:
-        is_locked, remaining_seconds, locked_until = check_lockout(db, payload.email)
+        is_locked, remaining_seconds, locked_until = check_lockout(db, payload.email, client_ip)
     except SQLAlchemyError:
         # Tabela ainda não existe ou erro de BD → ignora bloqueio, não derruba o login
         is_locked, remaining_seconds, locked_until = False, 0, None
@@ -205,7 +261,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
     # ── 3. Valida credenciais ─────────────────────────────────────────────────
     if not user or not verify_password(payload.password, user.hashed_password):
         try:
-            failed_count, lockout_seconds, locked_until_iso = register_failure(db, payload.email)
+            failed_count, lockout_seconds, locked_until_iso = register_failure(db, payload.email, client_ip)
         except SQLAlchemyError:
             # Tabela ainda não existe → apenas retorna credenciais inválidas
             failed_count, lockout_seconds, locked_until_iso = 0, 0, None
@@ -235,17 +291,30 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 
     # ── 5. Login bem-sucedido → zera contador ─────────────────────────────────
     try:
-        reset_on_success(db, payload.email)
+        reset_on_success(db, payload.email, client_ip)
     except SQLAlchemyError:
         pass  # Tabela ainda não existe → ignora, login segue normalmente
 
     auth_user = to_auth_user(user)
-    token = create_access_token({"sub": auth_user.id, "email": auth_user.email})
+    try:
+        access_token, access_expires_in, refresh_token, refresh_expires_in = _issue_session_tokens(
+            db,
+            auth_user=auth_user,
+            request=request,
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
+        )
 
     return LoginResponse(
         user=auth_user,
-        accessToken=token,
-        expiresIn=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        accessToken=access_token,
+        expiresIn=access_expires_in,
+        refreshToken=refresh_token,
+        refreshExpiresIn=refresh_expires_in,
     )
 
 
@@ -274,9 +343,105 @@ def logout(
                 revoked_at=datetime.now(timezone.utc),
             )
             db.add(entry)
-            db.commit()
+    revoke_all_user_refresh_sessions(db, user_id=current_user["id"])
+    db.commit()
 
     return {"ok": True, "message": "Logout realizado com sucesso."}
+
+
+@router.post("/refresh", response_model=LoginResponse, status_code=200)
+def refresh_session(request: Request, payload: RefreshTokenRequest, db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Sessão expirada ou inválida. Faça login novamente.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        token_payload = jwt.decode(
+            payload.refreshToken,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+        )
+    except JWTError:
+        raise credentials_exception
+
+    if token_payload.get("type") != "refresh":
+        raise credentials_exception
+
+    user_id = token_payload.get("sub")
+    email = token_payload.get("email")
+    jti = token_payload.get("jti")
+    if not user_id or not jti:
+        raise credentials_exception
+
+    session = db.get(RefreshToken, jti)
+    if session is None or session.user_id != user_id:
+        raise credentials_exception
+    if session.revoked_at is not None:
+        raise credentials_exception
+
+    now = datetime.now(timezone.utc)
+    session_exp = _normalize_utc(session.expires_at)
+    if session_exp <= now:
+        revoke_refresh_session(db, jti=jti)
+        db.commit()
+        raise credentials_exception
+
+    user = get_user_by_id(db, user_id)
+    if user is None or not user.is_active:
+        raise credentials_exception
+
+    token_iat_raw = token_payload.get("iat")
+    token_iat: datetime | None = None
+    if isinstance(token_iat_raw, (int, float)):
+        token_iat = datetime.fromtimestamp(token_iat_raw, tz=timezone.utc)
+    elif isinstance(token_iat_raw, str):
+        try:
+            token_iat = datetime.fromisoformat(token_iat_raw.replace("Z", "+00:00"))
+        except ValueError:
+            token_iat = None
+
+    if user.token_invalid_before is not None:
+        if token_iat is None:
+            raise credentials_exception
+        cutoff = _normalize_utc(user.token_invalid_before)
+        if token_iat <= cutoff:
+            revoke_refresh_session(db, jti=jti)
+            db.commit()
+            raise credentials_exception
+
+    auth_user = to_auth_user(user)
+    access_token = create_access_token({"sub": auth_user.id, "email": auth_user.email})
+    new_refresh_token, refresh_expires_in, new_refresh_jti, refresh_expires_at = create_refresh_token(
+        {"sub": auth_user.id, "email": email or auth_user.email}
+    )
+
+    try:
+        revoke_refresh_session(db, jti=jti, replaced_by_jti=new_refresh_jti)
+        create_refresh_session(
+            db,
+            user_id=auth_user.id,
+            jti=new_refresh_jti,
+            expires_at=refresh_expires_at,
+            ip_address=_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+        )
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
+        )
+
+    return LoginResponse(
+        user=auth_user,
+        accessToken=access_token,
+        expiresIn=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refreshToken=new_refresh_token,
+        refreshExpiresIn=refresh_expires_in,
+    )
 
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse, status_code=200)

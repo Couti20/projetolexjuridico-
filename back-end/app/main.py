@@ -78,6 +78,12 @@ app = FastAPI(
     redoc_url="/redoc" if settings.APP_ENV != "production" else None,
 )
 
+
+@app.on_event("startup")
+def validate_security_configuration() -> None:
+    settings.validate_startup_security()
+
+
 # ── Estado do rate limiter ────────────────────────────────────────────────────
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
