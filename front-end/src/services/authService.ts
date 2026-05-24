@@ -1,8 +1,15 @@
 import type { AuthUser } from '../types/auth';
 import { ApiError, api, clearAuthToken } from './api';
-
-import { ADMIN_ACCESS_TOKEN, getAdminUser, isAdminLogin, isAdminToken } from './adminAuth';
-
+import {
+  ADMIN_ACCESS_TOKEN,
+  TRIAL_ACCESS_TOKEN,
+  getAdminUser,
+  getTrialUser,
+  isAdminLogin,
+  isAdminToken,
+  isTrialLogin,
+  isTrialToken,
+} from './adminAuth';
 
 export interface LoginPayload {
   email: string;
@@ -20,15 +27,6 @@ export interface RegisterPayload {
   email: string;
   password: string;
   oab?: string; // opcional no cadastro inicial
-}
-
-export interface ForgotPasswordPayload {
-  email: string;
-}
-
-export interface ResetPasswordPayload {
-  token: string;
-  newPassword: string;
 }
 
 function isValidLoginResponse(value: unknown): value is LoginResponse {
@@ -95,18 +93,7 @@ async function fetchAuthEndpoint<TBody extends Record<string, unknown>, TRespons
       : response.status === 503 ? 'service_unavailable'
       : 'request_failed';
 
-    const retryAfterFromBody = typeof responseBody.retryAfter === 'number'
-      ? responseBody.retryAfter
-      : undefined;
-    const retryAfterFromHeader = Number(response.headers.get('retry-after'));
-    const retryAfter = Number.isFinite(retryAfterFromHeader) && retryAfterFromHeader > 0
-      ? retryAfterFromHeader
-      : retryAfterFromBody;
-    const lockedUntil = typeof responseBody.lockedUntil === 'string'
-      ? responseBody.lockedUntil
-      : undefined;
-
-    throw new ApiError(response.status, detail, code, retryAfter, lockedUntil);
+    throw new ApiError(response.status, detail, code);
   }
 
   return responseBody as TResponse;
@@ -116,6 +103,7 @@ export const authService = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
     const normalizedEmail = payload.email.trim().toLowerCase();
 
+    // ── Admin Login ──
     if (isAdminLogin(normalizedEmail, payload.password)) {
       return {
         user: getAdminUser(),
@@ -124,6 +112,14 @@ export const authService = {
       };
     }
 
+    // ── Trial Login ──
+    if (isTrialLogin(normalizedEmail, payload.password)) {
+      return {
+        user: getTrialUser(),
+        accessToken: TRIAL_ACCESS_TOKEN,
+        expiresIn: 86_400,
+      };
+    }
 
     const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
     const isValidPassword = typeof payload.password === 'string' && payload.password.length >= 6;
@@ -162,11 +158,9 @@ export const authService = {
   async logout(): Promise<void> {
     const token = window.localStorage.getItem('lex-auth-token') ?? undefined;
     try {
-
       if (isAdminToken(token)) {
         return;
       }
-
 
       if (token) {
         await fetchAuthEndpoint('/auth/logout', {}, token);
@@ -176,23 +170,5 @@ export const authService = {
     } finally {
       clearAuthToken();
     }
-  },
-
-  async forgotPassword(payload: ForgotPasswordPayload): Promise<{ message: string }> {
-    const normalizedEmail = payload.email.trim().toLowerCase();
-    return fetchAuthEndpoint<{ email: string }, { message: string }>(
-      '/auth/forgot-password',
-      { email: normalizedEmail },
-    );
-  },
-
-  async resetPassword(payload: ResetPasswordPayload): Promise<{ ok: boolean; message: string }> {
-    return fetchAuthEndpoint<
-      { token: string; new_password: string },
-      { ok: boolean; message: string }
-    >('/auth/reset-password', {
-      token: payload.token,
-      new_password: payload.newPassword,
-    });
   },
 };

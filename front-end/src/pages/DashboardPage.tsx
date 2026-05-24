@@ -15,6 +15,8 @@ import {
 import { Sparkles, Target, AlertTriangle, Clock, TrendingUp, CircleAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
+import { TrialFeatureGate } from '../components/TrialFeatureGate';
+import { useAuth } from '../hooks/useAuth';
 import { dashboardService } from '../services/dashboardService';
 
 interface ChartTooltipProps {
@@ -35,6 +37,8 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isTrialUser = Boolean(user?.usuarioTeste);
 
   const overviewQuery = useQuery({
     queryKey: ['dashboard', 'overview'],
@@ -45,7 +49,12 @@ export function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-5xl mx-auto space-y-6">
+      <TrialFeatureGate
+        isTrialUser={isTrialUser}
+        title="Dashboard Bloqueado"
+        description="Assine um plano para acessar o painel completo, métricas e insights da IA"
+      >
+        <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Dashboard Principal</h1>
           <p className="text-sm text-slate-500 mt-0.5">Visão geral dos seus prazos e processos</p>
@@ -225,7 +234,8 @@ export function DashboardPage() {
             </div>
           </>
         )}
-      </div>
+        </div>
+      </TrialFeatureGate>
     </AppLayout>
   );
 }

@@ -11,6 +11,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { AppLayout } from '../layouts/AppLayout';
+import { TrialFeatureGate } from '../components/TrialFeatureGate';
 import { useAuth } from '../hooks/useAuth';
 
 const SETTINGS_ITEMS = [
@@ -51,10 +52,16 @@ const SETTINGS_ITEMS = [
 export function SettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isTrialUser = Boolean(user?.usuarioTeste);
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <TrialFeatureGate
+        isTrialUser={isTrialUser}
+        title="Configurações Bloqueadas"
+        description="Assine um plano para acessar configurações da conta, plano e suporte"
+      >
+        <div className="max-w-3xl mx-auto space-y-6">
 
         {/* Cabeçalho */}
         <div>
@@ -102,7 +109,8 @@ export function SettingsPage() {
           ))}
         </div>
 
-      </div>
+        </div>
+      </TrialFeatureGate>
     </AppLayout>
   );
 }
