@@ -10,8 +10,9 @@
  * para ocultar o QR/botões enquanto o back-end não estiver pronto.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '../layouts/AppLayout';
+import { TrialFeatureGate } from '../components/TrialFeatureGate';
 import { AssistantHeaderSummary } from '../components/assistant-settings/AssistantHeaderSummary';
 import { OabMonitoringSection } from '../components/assistant-settings/OabMonitoringSection';
 import { WhatsAppIntegrationSection } from '../components/assistant-settings/WhatsAppIntegrationSection';
@@ -22,7 +23,6 @@ import type {
   OabEntry,
   SaveStatus,
   TestStatus,
-  DeliveryHistoryItem,
   WhatsAppConnectionStatus,
 } from '../components/assistant-settings/types';
 
@@ -32,12 +32,11 @@ interface StoredAssistantSettings {
   notifications?: NotificationPreferences;
   whatsAppStatus?: WhatsAppConnectionStatus;
   connectedDevice?: string;
-  deliveryHistory?: DeliveryHistoryItem[];
 }
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'lex-assistant-settings-v4';
+const STORAGE_KEY = 'lex-assistant-settings-v3';
 
 const INITIAL_NOTIFICATIONS: NotificationPreferences = {
   criticalAlerts24h:        true,
@@ -48,50 +47,12 @@ const INITIAL_NOTIFICATIONS: NotificationPreferences = {
   quietStart:               '22:00',
   quietEnd:                 '07:00',
   dailySummaryTime:         '08:00',
-  maxDailyMessages:         12,
-  templateCritical24h:      'Alerta crítico: prazo {prazo} no processo {processo}. Priorize esta ação agora.',
-  templateAttention72h:     'Atenção: prazo em até 72h no processo {processo}. Revise documentos e estratégia.',
-  templateDailySummary:     'Resumo diário: {resumo}',
+  // compatibility fields expected by older NotificationPreferences shape
+  maxDailyMessages: 12,
+  templateCritical24h: 'Alerta crítico: prazo {prazo} no processo {processo}. Priorize esta ação agora.',
+  templateAttention72h: 'Atenção: prazo em até 72h no processo {processo}. Revise documentos e estratégia.',
+  templateDailySummary: 'Resumo diário: {resumo}',
 };
-
-const INITIAL_DELIVERY_HISTORY: DeliveryHistoryItem[] = [
-  {
-    id: 'delivery-1',
-    title: 'Resumo diário enviado',
-    createdAtLabel: 'Hoje, 08:00',
-    status: 'sent',
-    detail: 'Entrega concluída para WhatsApp principal.',
-  },
-  {
-    id: 'delivery-2',
-    title: 'Alerta crítico 24h',
-    createdAtLabel: 'Hoje, 11:42',
-    status: 'sent',
-    detail: 'Prazo urgente notificado com sucesso.',
-  },
-  {
-    id: 'delivery-3',
-    title: 'Relatório semanal',
-    createdAtLabel: 'Ontem, 18:05',
-    status: 'failed',
-    detail: 'Falha temporária no provedor. Reenvio pendente.',
-  },
-];
-
-const STATUS_SEQUENCE: WhatsAppConnectionStatus[] = [
-  'connecting',
-  'qr_pending',
-  'connected',
-  'connected',
-  'connecting',
-  'connected',
-  'qr_expired',
-  'connecting',
-  'connected',
-  'error',
-  'connecting',
-  'connected',
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -123,17 +84,6 @@ function formatOabEntry(oab: OabEntry): string {
   return `OAB/${oab.uf} ${oab.number.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }
 
-function formatHistoryLabel(date: Date): string {
-  return `Hoje, ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-}
-
-function formatLastStatusCheckLabel(timestamp: number): string {
-  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-  if (elapsedSeconds < 60) return `${elapsedSeconds}s atrás`;
-  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-  return `${elapsedMinutes}min atrás`;
-}
-
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export function AssistantSettingsPage() {
@@ -146,12 +96,7 @@ export function AssistantSettingsPage() {
   const [connectedDevice, setConnectedDevice] = useState(stored.connectedDevice ?? '');
   const [testStatus,      setTestStatus]      = useState<TestStatus>('idle');
   const [notifications,   setNotifications]   = useState<NotificationPreferences>(stored.notifications ?? INITIAL_NOTIFICATIONS);
-  const [deliveryHistory, setDeliveryHistory] = useState<DeliveryHistoryItem[]>(
-    stored.deliveryHistory ?? INITIAL_DELIVERY_HISTORY,
-  );
-  const [statusCheckAt,   setStatusCheckAt]   = useState<number>(Date.now());
   const [saveStatus,      setSaveStatus]      = useState<SaveStatus>('idle');
-  const statusStepRef = useRef(0);
 
   // Persiste sempre que estado relevante muda
   useEffect(() => {
@@ -161,10 +106,9 @@ export function AssistantSettingsPage() {
         notifications,
         whatsAppStatus,
         connectedDevice,
-        deliveryHistory,
       } satisfies StoredAssistantSettings),
     );
-  }, [connectedDevice, deliveryHistory, notifications, whatsAppStatus]);
+  }, [connectedDevice, notifications, whatsAppStatus]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -181,56 +125,32 @@ export function AssistantSettingsPage() {
     markSaved();
   }
 
-  const handleRefreshStatus = useCallback(() => {
-    setStatusCheckAt(Date.now());
-    const nextStep = (statusStepRef.current + 1) % STATUS_SEQUENCE.length;
-    statusStepRef.current = nextStep;
-    const nextStatus = STATUS_SEQUENCE[nextStep];
-    setWhatsAppStatus(nextStatus);
-    if (nextStatus === 'connected' && !connectedDevice) {
-      setConnectedDevice('WhatsApp Web - Escritório');
-    }
-  }, [connectedDevice]);
-
-  useEffect(() => {
-    if (whatsAppStatus === 'disconnected') {
-      handleRefreshStatus();
-    }
-  }, [handleRefreshStatus, whatsAppStatus]);
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      handleRefreshStatus();
-    }, 30_000);
-    return () => window.clearInterval(intervalId);
-  }, [handleRefreshStatus]);
-
   function handleSendTestMessage() {
     setTestStatus('sending');
     window.setTimeout(() => {
-      const success = whatsAppStatus === 'connected';
-      setTestStatus(success ? 'sent' : 'failed');
-      setDeliveryHistory((prev) => [
-        {
-          id: crypto.randomUUID(),
-          title: 'Mensagem de teste',
-          createdAtLabel: formatHistoryLabel(new Date()),
-          status: success ? 'sent' : 'failed',
-          detail: success
-            ? 'Mensagem de validação entregue com sucesso.'
-            : 'Falha ao enviar teste: conexão WhatsApp indisponível.',
-        },
-        ...prev,
-      ]);
+      setTestStatus('sent');
       window.setTimeout(() => setTestStatus('idle'), 1_800);
-    }, 900);
+    }, 800);
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const isTrialUser = Boolean(user?.usuarioTeste);
+
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-5">
+      <TrialFeatureGate
+        isTrialUser={isTrialUser}
+        title="Configurações Bloqueadas"
+        description="Assine um plano para configurar o assistente, notificações e WhatsApp"
+      >
+        <div className="max-w-4xl mx-auto space-y-6">
+
+        {/* Cabeçalho */}
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Configurações do Assistente</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Personalize suas notificações e integração com WhatsApp</p>
+        </div>
 
         <AssistantHeaderSummary
           userOab={userOab}
@@ -256,9 +176,9 @@ export function AssistantSettingsPage() {
             whatsAppStatus={whatsAppStatus}
             connectedDevice={connectedDevice}
             testStatus={testStatus}
-            lastStatusCheckLabel={formatLastStatusCheckLabel(statusCheckAt)}
-            deliveryHistory={deliveryHistory}
-            onRefreshStatus={handleRefreshStatus}
+            lastStatusCheckLabel={''}
+            deliveryHistory={[]}
+            onRefreshStatus={() => {}}
             onSendTestMessage={handleSendTestMessage}
           />
         </div>
@@ -268,7 +188,8 @@ export function AssistantSettingsPage() {
           saveStatus={saveStatus}
           onUpdateNotification={updateNotification}
         />
-      </div>
+        </div>
+      </TrialFeatureGate>
     </AppLayout>
   );
 }

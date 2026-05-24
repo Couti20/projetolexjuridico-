@@ -43,6 +43,11 @@ export interface AuthUser {
   oab?: string;
   isAdmin?: boolean;
   /**
+   * True se usuário está em período de teste/trial com features bloqueadas.
+   * Usuários nesse estado veem conteúdo mockado com overlay de upsell.
+   */
+  usuarioTeste?: boolean;
+  /**
    * Espelhado do campo `setup_completed` no banco.
    * Vem preenchido na resposta do login/register — persiste entre dispositivos.
    * O front NUNCA recalcula esse valor: só o back-end é a fonte da verdade.
