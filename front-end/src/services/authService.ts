@@ -171,4 +171,23 @@ export const authService = {
       clearAuthToken();
     }
   },
+
+  // Backwards-compatible endpoints expected by main
+  async forgotPassword(payload: { email: string }): Promise<{ message: string }> {
+    const normalizedEmail = payload.email.trim().toLowerCase();
+    return fetchAuthEndpoint<{ email: string }, { message: string }>(
+      '/auth/forgot-password',
+      { email: normalizedEmail },
+    );
+  },
+
+  async resetPassword(payload: { token: string; newPassword: string }): Promise<{ ok: boolean; message: string }> {
+    return fetchAuthEndpoint<
+      { token: string; new_password: string },
+      { ok: boolean; message: string }
+    >('/auth/reset-password', {
+      token: payload.token,
+      new_password: payload.newPassword,
+    });
+  },
 };

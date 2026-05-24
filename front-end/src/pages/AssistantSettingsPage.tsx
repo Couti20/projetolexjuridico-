@@ -47,6 +47,11 @@ const INITIAL_NOTIFICATIONS: NotificationPreferences = {
   quietStart:               '22:00',
   quietEnd:                 '07:00',
   dailySummaryTime:         '08:00',
+  // compatibility fields expected by older NotificationPreferences shape
+  maxDailyMessages: 12,
+  templateCritical24h: 'Alerta crítico: prazo {prazo} no processo {processo}. Priorize esta ação agora.',
+  templateAttention72h: 'Atenção: prazo em até 72h no processo {processo}. Revise documentos e estratégia.',
+  templateDailySummary: 'Resumo diário: {resumo}',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -171,6 +176,9 @@ export function AssistantSettingsPage() {
             whatsAppStatus={whatsAppStatus}
             connectedDevice={connectedDevice}
             testStatus={testStatus}
+            lastStatusCheckLabel={''}
+            deliveryHistory={[]}
+            onRefreshStatus={() => {}}
             onSendTestMessage={handleSendTestMessage}
           />
         </div>
