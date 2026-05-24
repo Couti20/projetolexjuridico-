@@ -49,7 +49,7 @@ export function TrialBlockingCard({
       </S.Badge>
 
       <S.CtaButton type="button" onClick={handleCtaClick}>
-        Ver Planos
+        Teste grátis por 7 dias
         <ArrowRight size={16} />
       </S.CtaButton>
 
